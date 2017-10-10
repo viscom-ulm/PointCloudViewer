@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.7)
-SET(APP_NAME ProjectorFramework)
+SET(APP_NAME ViscomFramework)
 
 PROJECT(${APP_NAME})
 
