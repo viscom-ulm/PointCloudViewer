@@ -2,3 +2,6 @@
 	path = extern/fwcore
 	url=https://github.com/viscom-ulm/viscom_framework_core.git
 	branch = v_0.7
+[submodule "extern/fwenh"]
+	path = extern/fwenh
+	url = https://github.com/dasmysh/viscom_framework_enh.git
