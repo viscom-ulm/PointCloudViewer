@@ -31,27 +31,27 @@ namespace viscom {
         static void SetVertexAttributes(const GPUProgram* program)
         {
             auto attribLoc = program->getAttributeLocations({ "position", "normal", "texCoords" });
-            glEnableVertexAttribArray(attribLoc[0]);
-            glVertexAttribPointer(attribLoc[0], 3, GL_FLOAT, GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, position_)));
-            glEnableVertexAttribArray(attribLoc[1]);
-            glVertexAttribPointer(attribLoc[1], 3, GL_FLOAT, GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, normal_)));
-            glEnableVertexAttribArray(attribLoc[2]);
-            glVertexAttribPointer(attribLoc[2], 2, GL_FLOAT, GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, texCoords_)));
+            gl::glEnableVertexAttribArray(attribLoc[0]);
+            gl::glVertexAttribPointer(attribLoc[0], 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, position_)));
+            gl::glEnableVertexAttribArray(attribLoc[1]);
+            gl::glVertexAttribPointer(attribLoc[1], 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, normal_)));
+            gl::glEnableVertexAttribArray(attribLoc[2]);
+            gl::glVertexAttribPointer(attribLoc[2], 2, gl::GL_FLOAT, gl::GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, texCoords_)));
         }
 
         static GLuint CreateVertexBuffer(const Mesh* mesh)
         {
             GLuint vbo = 0;
-            glGenBuffers(1, &vbo);
+            gl::glGenBuffers(1, &vbo);
             std::vector<SimpleMeshVertex> bufferMem(mesh->GetVertices().size());
             for (auto i = 0U; i < mesh->GetVertices().size(); ++i) {
                 bufferMem[i].position_ = mesh->GetVertices()[i];
                 bufferMem[i].normal_ = mesh->GetNormals()[i];
                 bufferMem[i].texCoords_ = glm::vec2(mesh->GetTexCoords(0)[i]);
             }
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, bufferMem.size() * sizeof(SimpleMeshVertex), bufferMem.data(), GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vbo);
+            gl::glBufferData(gl::GL_ARRAY_BUFFER, bufferMem.size() * sizeof(SimpleMeshVertex), bufferMem.data(), gl::GL_STATIC_DRAW);
+            gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
             return vbo;
         }
     };

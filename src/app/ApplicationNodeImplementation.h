@@ -63,7 +63,7 @@ namespace viscom {
         /** Holds the teapot mesh. */
         std::shared_ptr<Mesh> teapotMesh_;
         /** Holds the teapot mesh renderable. */
-        std::unique_ptr<MeshRenderable> teapotRenderable_;
+        // std::unique_ptr<MeshRenderable> teapotRenderable_;
 
         glm::mat4 triangleModelMatrix_;
         glm::mat4 teapotModelMatrix_;

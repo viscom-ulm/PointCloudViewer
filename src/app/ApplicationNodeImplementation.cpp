@@ -7,15 +7,21 @@
  */
 
 #include "ApplicationNodeImplementation.h"
-#include "Vertices.h"
+
+#include <GLFW/glfw3.h>
+#include <glbinding/gl/gl.h>
+#include <glbinding/Binding.h>
 #include <imgui.h>
-#include "core/gfx/mesh/MeshRenderable.h"
-#include "core/imgui/imgui_impl_glfw_gl3.h"
 #include <iostream>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include "Vertices.h"
+#include "core/imgui/imgui_impl_glfw_gl3.h"
+// #include "core/gfx/mesh/MeshRenderable.h"
+
 
 namespace viscom {
 
@@ -28,6 +34,8 @@ namespace viscom {
 
     void ApplicationNodeImplementation::InitOpenGL()
     {
+        glbinding::Binding::initialize();
+
         backgroundProgram_ = GetGPUProgramManager().GetResource("backgroundGrid", std::initializer_list<std::string>{ "backgroundGrid.vert", "backgroundGrid.frag" });
         backgroundMVPLoc_ = backgroundProgram_->getUniformLocation("MVP");
 
@@ -67,22 +75,22 @@ namespace viscom {
         gridVertices.emplace_back(glm::vec3(0.0f, 0.5f, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
         gridVertices.emplace_back(glm::vec3(0.5f, -0.5f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 
-        glGenBuffers(1, &vboBackgroundGrid_);
-        glBindBuffer(GL_ARRAY_BUFFER, vboBackgroundGrid_);
-        glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(GridVertex), gridVertices.data(), GL_STATIC_DRAW);
+        gl::glGenBuffers(1, &vboBackgroundGrid_);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboBackgroundGrid_);
+        gl::glBufferData(gl::GL_ARRAY_BUFFER, gridVertices.size() * sizeof(GridVertex), gridVertices.data(), gl::GL_STATIC_DRAW);
 
-        glGenVertexArrays(1, &vaoBackgroundGrid_);
-        glBindVertexArray(vaoBackgroundGrid_);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, position_)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, color_)));
-        glBindVertexArray(0);
+        gl::glGenVertexArrays(1, &vaoBackgroundGrid_);
+        gl::glBindVertexArray(vaoBackgroundGrid_);
+        gl::glEnableVertexAttribArray(0);
+        gl::glVertexAttribPointer(0, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, position_)));
+        gl::glEnableVertexAttribArray(1);
+        gl::glVertexAttribPointer(1, 4, gl::GL_FLOAT, gl::GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, color_)));
+        gl::glBindVertexArray(0);
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
 
         teapotMesh_ = GetMeshManager().GetResource("/models/teapot/teapot.obj");
-        teapotRenderable_ = MeshRenderable::create<SimpleMeshVertex>(teapotMesh_.get(), teapotProgram_.get());
+        // teapotRenderable_ = MeshRenderable::create<SimpleMeshVertex>(teapotMesh_.get(), teapotProgram_.get());
     }
 
     void ApplicationNodeImplementation::UpdateFrame(double currentTime, double)
@@ -100,53 +108,53 @@ namespace viscom {
     void ApplicationNodeImplementation::ClearBuffer(FrameBuffer& fbo)
     {
         fbo.DrawToFBO([]() {
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
         });
     }
 
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
         fbo.DrawToFBO([this]() {
-            glBindVertexArray(vaoBackgroundGrid_);
-            glBindBuffer(GL_ARRAY_BUFFER, vboBackgroundGrid_);
+            gl::glBindVertexArray(vaoBackgroundGrid_);
+            gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboBackgroundGrid_);
 
             auto MVP = GetCamera()->GetViewPerspectiveMatrix();
             {
-                glUseProgram(backgroundProgram_->getProgramId());
-                glUniformMatrix4fv(backgroundMVPLoc_, 1, GL_FALSE, glm::value_ptr(MVP));
-                glDrawArrays(GL_TRIANGLES, 0, numBackgroundVertices_);
+                gl::glUseProgram(backgroundProgram_->getProgramId());
+                gl::glUniformMatrix4fv(backgroundMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
+                gl::glDrawArrays(gl::GL_TRIANGLES, 0, numBackgroundVertices_);
             }
 
             {
-                glDisable(GL_CULL_FACE);
+                gl::glDisable(gl::GL_CULL_FACE);
                 auto triangleMVP = MVP * triangleModelMatrix_;
-                glUseProgram(triangleProgram_->getProgramId());
-                glUniformMatrix4fv(triangleMVPLoc_, 1, GL_FALSE, glm::value_ptr(triangleMVP));
-                glDrawArrays(GL_TRIANGLES, numBackgroundVertices_, 3);
-                glEnable(GL_CULL_FACE);
+                gl::glUseProgram(triangleProgram_->getProgramId());
+                gl::glUniformMatrix4fv(triangleMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(triangleMVP));
+                gl::glDrawArrays(gl::GL_TRIANGLES, numBackgroundVertices_, 3);
+                gl::glEnable(gl::GL_CULL_FACE);
             }
 
             {
-                glUseProgram(teapotProgram_->getProgramId());
+                gl::glUseProgram(teapotProgram_->getProgramId());
                 auto normalMatrix = glm::inverseTranspose(glm::mat3(teapotModelMatrix_));
-                glUniformMatrix4fv(teapotModelMLoc_, 1, GL_FALSE, glm::value_ptr(teapotModelMatrix_));
-                glUniformMatrix4fv(teapotNormalMLoc_, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-                glUniformMatrix4fv(teapotVPLoc_, 1, GL_FALSE, glm::value_ptr(MVP));
-                teapotRenderable_->Draw(teapotModelMatrix_);
+                gl::glUniformMatrix4fv(teapotModelMLoc_, 1, gl::GL_FALSE, glm::value_ptr(teapotModelMatrix_));
+                gl::glUniformMatrix4fv(teapotNormalMLoc_, 1, gl::GL_FALSE, glm::value_ptr(normalMatrix));
+                gl::glUniformMatrix4fv(teapotVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
+                // teapotRenderable_->Draw(teapotModelMatrix_);
             }
 
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
-            glUseProgram(0);
+            gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+            gl::glBindVertexArray(0);
+            gl::glUseProgram(0);
         });
     }
 
     void ApplicationNodeImplementation::CleanUp()
     {
-        if (vaoBackgroundGrid_ != 0) glDeleteVertexArrays(1, &vaoBackgroundGrid_);
+        if (vaoBackgroundGrid_ != 0) gl::glDeleteVertexArrays(1, &vaoBackgroundGrid_);
         vaoBackgroundGrid_ = 0;
-        if (vboBackgroundGrid_ != 0) glDeleteBuffers(1, &vboBackgroundGrid_);
+        if (vboBackgroundGrid_ != 0) gl::glDeleteBuffers(1, &vboBackgroundGrid_);
         vboBackgroundGrid_ = 0;
     }
 
