@@ -6,3 +6,4 @@ data/old/
 **/*Precompute*.???
 data/*/*.dat
 .vs/
+resources/shader/**/*.gen
