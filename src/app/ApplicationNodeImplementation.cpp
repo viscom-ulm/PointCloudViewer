@@ -8,7 +8,7 @@
 
 #include "ApplicationNodeImplementation.h"
 
-#include <GLFW/glfw3.h>
+#include "core/glfw.h"
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
 #include <imgui.h>
