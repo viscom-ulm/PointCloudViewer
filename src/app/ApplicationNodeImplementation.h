@@ -8,14 +8,13 @@
 
 #pragma once
 
-#include "core/ApplicationNodeInternal.h"
-#include "core/ApplicationNodeBase.h"
+#include "enh/ApplicationNodeBase.h"
 
 namespace viscom {
 
     class MeshRenderable;
 
-    class ApplicationNodeImplementation : public ApplicationNodeBase
+    class ApplicationNodeImplementation : public enh::ApplicationNodeBase
     {
     public:
         explicit ApplicationNodeImplementation(ApplicationNodeInternal* appNode);
