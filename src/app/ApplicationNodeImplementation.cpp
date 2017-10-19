@@ -36,13 +36,13 @@ namespace viscom {
     {
         enh::ApplicationNodeBase::InitOpenGL();
 
-        backgroundProgram_ = GetGPUProgramManager().GetResource("backgroundGrid", std::initializer_list<std::string>{ "backgroundGrid.vert", "backgroundGrid.frag" });
+        backgroundProgram_ = GetGPUProgramManager().GetResource("backgroundGrid", std::vector<std::string>{ "backgroundGrid.vert", "backgroundGrid.frag" });
         backgroundMVPLoc_ = backgroundProgram_->getUniformLocation("MVP");
 
-        triangleProgram_ = GetGPUProgramManager().GetResource("foregroundTriangle", std::initializer_list<std::string>{ "foregroundTriangle.vert", "foregroundTriangle.frag" });
+        triangleProgram_ = GetGPUProgramManager().GetResource("foregroundTriangle", std::vector<std::string>{ "foregroundTriangle.vert", "foregroundTriangle.frag" });
         triangleMVPLoc_ = triangleProgram_->getUniformLocation("MVP");
 
-        teapotProgram_ = GetGPUProgramManager().GetResource("foregroundMesh", std::initializer_list<std::string>{ "foregroundMesh.vert", "foregroundMesh.frag" });
+        teapotProgram_ = GetGPUProgramManager().GetResource("foregroundMesh", std::vector<std::string>{ "foregroundMesh.vert", "foregroundMesh.frag" });
         teapotModelMLoc_ = teapotProgram_->getUniformLocation("modelMatrix");
         teapotNormalMLoc_ = teapotProgram_->getUniformLocation("normalMatrix");
         teapotVPLoc_ = teapotProgram_->getUniformLocation("viewProjectionMatrix");
