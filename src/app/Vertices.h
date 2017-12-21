@@ -44,7 +44,7 @@ namespace viscom {
             GLuint vbo = 0;
             gl::glGenBuffers(1, &vbo);
             std::vector<SimpleMeshVertex> bufferMem(mesh->GetVertices().size());
-            for (auto i = 0U; i < mesh->GetVertices().size(); ++i) {
+            for (std::size_t i = 0; i < mesh->GetVertices().size(); ++i) {
                 bufferMem[i].position_ = mesh->GetVertices()[i];
                 bufferMem[i].normal_ = mesh->GetNormals()[i];
                 bufferMem[i].texCoords_ = glm::vec2(mesh->GetTexCoords(0)[i]);

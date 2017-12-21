@@ -84,7 +84,7 @@ namespace viscom {
         gl::glEnableVertexAttribArray(0);
         gl::glVertexAttribPointer(0, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, position_)));
         gl::glEnableVertexAttribArray(1);
-        gl::glVertexAttribPointer(1, 4, gl::GL_FLOAT, gl::GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, color_)));
+        gl::glVertexAttribPointer(1, 4, gl::GL_FLOAT, gl::GL_FALSE, sizeof(GridVertex), reinterpret_cast<GLvoid*>(offsetof(GridVertex, color_))); //-V112
         gl::glBindVertexArray(0);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
