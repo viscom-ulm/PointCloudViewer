@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.9)
 SET(APP_NAME ViscomFramework)
 
 PROJECT(${APP_NAME})
@@ -83,6 +83,7 @@ endforeach()
 
 add_executable(${APP_NAME} ${SRC_FILES} ${SRC_FILES_CORE} ${SRC_FILES_ENH} ${SHADER_FILES} ${SHADER_FILES_CORE} ${SHADER_FILES_ENH} ${EXTERN_SOURCES_CORE})
 set_target_properties(${APP_NAME} PROPERTIES OUTPUT_NAME ${VISCOM_APP_NAME})
+set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 17)
 target_include_directories(${APP_NAME} PRIVATE ${CORE_INCLUDE_DIRS} ${ENH_INCLUDE_DIRS})
 target_link_libraries(${APP_NAME} ${CORE_LIBS} ${ENH_LIBS})
 target_compile_definitions(${APP_NAME} PRIVATE ${COMPILE_TIME_DEFS})
