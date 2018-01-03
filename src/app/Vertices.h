@@ -9,6 +9,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include "core/open_gl.h"
 
 namespace viscom {
 
@@ -31,12 +32,19 @@ namespace viscom {
         static void SetVertexAttributes(const GPUProgram* program)
         {
             auto attribLoc = program->GetAttributeLocations({ "position", "normal", "texCoords" });
-            gl::glEnableVertexAttribArray(attribLoc[0]);
-            gl::glVertexAttribPointer(attribLoc[0], 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, position_)));
-            gl::glEnableVertexAttribArray(attribLoc[1]);
-            gl::glVertexAttribPointer(attribLoc[1], 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, normal_)));
-            gl::glEnableVertexAttribArray(attribLoc[2]);
-            gl::glVertexAttribPointer(attribLoc[2], 2, gl::GL_FLOAT, gl::GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, texCoords_)));
+
+            if (attribLoc[0] != -1) {
+                glEnableVertexAttribArray(attribLoc[0]);
+                glVertexAttribPointer(attribLoc[0], 3, GL_FLOAT, GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, position_)));
+            }
+            if (attribLoc[1] != -1) {
+                glEnableVertexAttribArray(attribLoc[1]);
+                glVertexAttribPointer(attribLoc[1], 3, GL_FLOAT, GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, normal_)));
+            }
+            if (attribLoc[2] != -1) {
+                glEnableVertexAttribArray(attribLoc[2]);
+                glVertexAttribPointer(attribLoc[2], 2, GL_FLOAT, GL_FALSE, sizeof(SimpleMeshVertex), reinterpret_cast<GLvoid*>(offsetof(SimpleMeshVertex, texCoords_)));
+            }
         }
 
         static GLuint CreateVertexBuffer(const Mesh* mesh)

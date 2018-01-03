@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <Cluster masterAddress="localhost" debug = "true">
-	<Node address="localhost" port="20401">
+	<Node address="localhost" port="20401" dataTransferPort="20501">
 		<Window fullScreen="false" monitor="0">
 			<Stereo type="none" />
 			<Size x="640" y="720"/>
@@ -19,7 +19,7 @@
 			</Viewport>
 		</Window>
 	</Node>
-	<Node address="8.8.8.8" port="20402">
+	<Node address="8.8.8.8" port="20402" dataTransferPort="20502">
 		<Window fullScreen="false" monitor="0">
 			<Stereo type="none" />
 			<Size x="640" y="720"/>
