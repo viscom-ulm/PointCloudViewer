@@ -36,6 +36,7 @@ int main(int argc, char** argv)
     viscom::FWConfiguration config;
     if (argc > 1) config = viscom::LoadConfiguration(argv[1]);
     else config = viscom::LoadConfiguration("framework.cfg");
+    config.resourceSearchPaths_.emplace_back(config.baseDirectory_ + "extern/fwenh/resources/");
 
     auto appNode = Application_Init(config);
 

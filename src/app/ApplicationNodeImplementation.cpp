@@ -156,6 +156,13 @@ namespace viscom {
         vaoBackgroundGrid_ = 0;
         if (vboBackgroundGrid_ != 0) gl::glDeleteBuffers(1, &vboBackgroundGrid_);
         vboBackgroundGrid_ = 0;
+
+        teapotMesh_ = nullptr;
+        teapotProgram_ = nullptr;
+        triangleProgram_ = nullptr;
+        backgroundProgram_ = nullptr;
+
+        ApplicationNodeBase::CleanUp();
     }
 
     bool ApplicationNodeImplementation::KeyboardCallback(int key, int scancode, int action, int mods)
