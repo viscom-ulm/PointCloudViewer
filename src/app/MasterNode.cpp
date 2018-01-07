@@ -8,6 +8,7 @@
 
 #include "MasterNode.h"
 #include <imgui.h>
+#include "enh/gfx/postprocessing/DepthOfField.h"
 
 namespace viscom {
 
@@ -20,14 +21,10 @@ namespace viscom {
 
     void MasterNode::Draw2D(FrameBuffer& fbo)
     {
-        fbo.DrawToFBO([]() {
-            ImGui::ShowTestWindow();
-
-            ImGui::SetNextWindowPos(ImVec2(700, 60), ImGuiSetCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiSetCond_FirstUseEver);
-            if (ImGui::Begin("MasterTestWindow", nullptr, ImGuiWindowFlags_ShowBorders))
-            {
-                ImGui::Text("Hello World on Master!");
+        fbo.DrawToFBO([this]() {
+            ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("", nullptr, ImGuiWindowFlags_ShowBorders)) {
+                GetDOF()->RenderParameterSliders();
             }
             ImGui::End();
         });

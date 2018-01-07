@@ -10,6 +10,10 @@
 
 #include "enh/ApplicationNodeBase.h"
 
+namespace viscom::enh {
+    class DepthOfField;
+}
+
 namespace viscom {
 
     class MeshRenderable;
@@ -31,6 +35,9 @@ namespace viscom {
         virtual void CleanUp() override;
 
         virtual bool KeyboardCallback(int key, int scancode, int action, int mods) override;
+
+    protected:
+        enh::DepthOfField* GetDOF() { return dof_.get(); }
 
     private:
         /** Holds the shader program for drawing the background. */
@@ -68,5 +75,8 @@ namespace viscom {
         glm::mat4 teapotModelMatrix_;
         glm::vec3 camPos_;
         glm::vec3 camRot_;
+
+        std::vector<FrameBuffer> sceneFBOs_;
+        std::unique_ptr<enh::DepthOfField> dof_;
     };
 }

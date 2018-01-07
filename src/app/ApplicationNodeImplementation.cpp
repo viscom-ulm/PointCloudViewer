@@ -21,6 +21,7 @@
 
 #include "Vertices.h"
 #include "core/imgui/imgui_impl_glfw_gl3.h"
+#include "enh/gfx/postprocessing/DepthOfField.h"
 // #include "core/gfx/mesh/MeshRenderable.h"
 
 namespace viscom {
@@ -91,6 +92,12 @@ namespace viscom {
 
         teapotMesh_ = GetMeshManager().GetResource("/models/teapot/teapot.obj");
         // teapotRenderable_ = MeshRenderable::create<SimpleMeshVertex>(teapotMesh_.get(), teapotProgram_.get());
+
+        FrameBufferDescriptor sceneFBODesc{ {
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT) } }, {} };
+        sceneFBOs_ = CreateOffscreenBuffers(sceneFBODesc);
+        dof_ = std::make_unique<enh::DepthOfField>(this);
     }
 
     void ApplicationNodeImplementation::UpdateFrame(double currentTime, double)
@@ -107,6 +114,11 @@ namespace viscom {
 
     void ApplicationNodeImplementation::ClearBuffer(FrameBuffer& fbo)
     {
+        SelectOffscreenBuffer(sceneFBOs_)->DrawToFBO([]() {
+            gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+        });
+
         fbo.DrawToFBO([]() {
             gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
@@ -115,7 +127,8 @@ namespace viscom {
 
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
-        fbo.DrawToFBO([this]() {
+        auto sceneFBO = SelectOffscreenBuffer(sceneFBOs_);
+        sceneFBO->DrawToFBO([this]() {
             gl::glBindVertexArray(vaoBackgroundGrid_);
             gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboBackgroundGrid_);
 
@@ -148,6 +161,9 @@ namespace viscom {
             gl::glBindVertexArray(0);
             gl::glUseProgram(0);
         });
+
+        dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[1], &fbo);
+        // fbo.DrawToFBO([this]() {});
     }
 
     void ApplicationNodeImplementation::CleanUp()
@@ -156,6 +172,9 @@ namespace viscom {
         vaoBackgroundGrid_ = 0;
         if (vboBackgroundGrid_ != 0) gl::glDeleteBuffers(1, &vboBackgroundGrid_);
         vboBackgroundGrid_ = 0;
+
+        dof_ = nullptr;
+        sceneFBOs_.clear();
 
         teapotMesh_ = nullptr;
         teapotProgram_ = nullptr;
