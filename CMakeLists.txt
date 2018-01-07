@@ -115,6 +115,12 @@ set(VISCOM_CONFIG_PROJECTOR_DATA "../../calibration/data/${VISCOM_CONFIG_NAME}/P
 set(VISCOM_CONFIG_LOCAL "-1")
 configure_file("framework.cfg" "framework_install.cfg")
 
+if(GENERATOR_IS_MULTI_CONFIG)
+    foreach(CONFIG_TYPE ${CMAKE_CONFIGURATION_TYPES})
+        configure_file("RDSettings.cap" "${CONFIG_TYPE}Settings.cap")
+    endforeach()
+endif()
+
 copy_core_lib_dlls(${APP_NAME})
 
 install(TARGETS ${APP_NAME} RUNTIME DESTINATION ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME})
