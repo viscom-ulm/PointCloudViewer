@@ -7,3 +7,5 @@ data/old/
 data/*/*.dat
 .vs/
 resources/shader/**/*.gen
+
+!resources/**/*.obj
