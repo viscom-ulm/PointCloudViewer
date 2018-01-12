@@ -67,8 +67,8 @@ if(GENERATOR_IS_MULTI_CONFIG)
 endif()
 
 
-include(${PROJECT_SOURCE_DIR}/extern/fwcore/CMake_core.txt)
-include(${PROJECT_SOURCE_DIR}/extern/fwenh/CMake_enh.txt)
+include(${PROJECT_SOURCE_DIR}/extern/fwcore/CMake_core.cmake)
+include(${PROJECT_SOURCE_DIR}/extern/fwenh/CMake_enh.cmake)
 
 set(VISCOM_CONFIG_NAME "single" CACHE STRING "Name/directory of the configuration files to be used.")
 set(VISCOM_VIRTUAL_SCREEN_X 1920 CACHE INTEGER "Virtual screen size in x direction.")
