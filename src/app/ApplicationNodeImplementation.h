@@ -35,6 +35,7 @@ namespace viscom {
         virtual void CleanUp() override;
 
         virtual bool KeyboardCallback(int key, int scancode, int action, int mods) override;
+        virtual bool MouseButtonCallback(int button, int action) override;
 
     protected:
         enh::DepthOfField* GetDOF() { return dof_.get(); }

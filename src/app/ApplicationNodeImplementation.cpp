@@ -241,4 +241,10 @@ namespace viscom {
         return false;
     }
 
+    bool ApplicationNodeImplementation::MouseButtonCallback(int button, int action)
+    {
+        auto test = GetCamera()->GetPickPosition(GetMousePosition());
+        return true;
+    }
+
 }
