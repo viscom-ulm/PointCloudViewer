@@ -5,7 +5,7 @@
         "commandLine": "",
         "environment": [
         ],
-        "executable": "${CMAKE_BINARY_DIR}\${CONFIG_TYPE}\${VISCOM_APP_NAME}.exe",
+        "executable": "${CMAKE_BINARY_DIR}/${CONFIG_TYPE}/${VISCOM_APP_NAME}.exe",
         "inject": false,
         "options": {
             "allowFullscreen": true,
