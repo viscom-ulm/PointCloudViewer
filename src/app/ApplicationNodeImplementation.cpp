@@ -136,12 +136,12 @@ namespace viscom {
             {
                 gl::glUseProgram(backgroundProgram_->getProgramId());
                 gl::glUniformMatrix4fv(backgroundMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
-                gl::glDrawArrays(gl::GL_TRIANGLES, 0, numBackgroundVertices_);
+                // gl::glDrawArrays(gl::GL_TRIANGLES, 0, numBackgroundVertices_);
             }
 
-            {
+            for (std::size_t i = 0; i < 50; ++i) {
                 gl::glDisable(gl::GL_CULL_FACE);
-                auto triangleMVP = MVP * triangleModelMatrix_;
+                auto triangleMVP = MVP * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -static_cast<float>(i - 8))) * triangleModelMatrix_;
                 gl::glUseProgram(triangleProgram_->getProgramId());
                 gl::glUniformMatrix4fv(triangleMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(triangleMVP));
                 gl::glDrawArrays(gl::GL_TRIANGLES, numBackgroundVertices_, 3);
