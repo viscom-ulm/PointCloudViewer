@@ -22,6 +22,8 @@
 #include "Vertices.h"
 #include "core/imgui/imgui_impl_glfw_gl3.h"
 #include "enh/gfx/postprocessing/DepthOfField.h"
+#include "enh/gfx/postprocessing/BloomEffect.h"
+#include "enh/gfx/postprocessing/FilmicTMOperator.h"
 // #include "core/gfx/mesh/MeshRenderable.h"
 
 namespace viscom {
@@ -95,9 +97,12 @@ namespace viscom {
 
         FrameBufferDescriptor sceneFBODesc{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT) } }, {} };
         sceneFBOs_ = CreateOffscreenBuffers(sceneFBODesc);
+
         dof_ = std::make_unique<enh::DepthOfField>(this);
+        tm_ = std::make_unique<enh::FilmicTMOperator>(this);
     }
 
     void ApplicationNodeImplementation::UpdateFrame(double currentTime, double)
@@ -108,7 +113,7 @@ namespace viscom {
         glm::quat rollQuat = glm::angleAxis(camRot_.z, glm::vec3(0.0f, 0.0f, 1.0f));
         GetCamera()->SetOrientation(yawQuat * pitchQuat * rollQuat);
 
-        triangleModelMatrix_ = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)), static_cast<float>(currentTime), glm::vec3(0.0f, 1.0f, 0.0f));
+        triangleModelMatrix_ = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)), 0.1f * static_cast<float>(currentTime), glm::vec3(0.0f, 1.0f, 0.0f));
         teapotModelMatrix_ = glm::scale(glm::rotate(glm::translate(glm::mat4(0.01f), glm::vec3(-3.0f, 0.0f, -5.0f)), static_cast<float>(currentTime), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.01f));
     }
 
@@ -141,7 +146,7 @@ namespace viscom {
 
             for (std::size_t i = 0; i < 50; ++i) {
                 gl::glDisable(gl::GL_CULL_FACE);
-                auto triangleMVP = MVP * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -static_cast<float>(i - 8))) * triangleModelMatrix_;
+                auto triangleMVP = MVP * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f * static_cast<float>(i - 8))) * triangleModelMatrix_;
                 gl::glUseProgram(triangleProgram_->getProgramId());
                 gl::glUniformMatrix4fv(triangleMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(triangleMVP));
                 gl::glDrawArrays(gl::GL_TRIANGLES, numBackgroundVertices_, 3);
@@ -162,7 +167,9 @@ namespace viscom {
             gl::glUseProgram(0);
         });
 
-        dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[1], &fbo);
+        dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[2], sceneFBO, 1);
+        tm_->ApplyTonemapping(sceneFBO->GetTextures()[1], &fbo);
+
         // fbo.DrawToFBO([this]() {});
     }
 

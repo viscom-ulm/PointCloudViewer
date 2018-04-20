@@ -9,6 +9,8 @@
 #include "MasterNode.h"
 #include <imgui.h>
 #include "enh/gfx/postprocessing/DepthOfField.h"
+#include "enh/gfx/postprocessing/BloomEffect.h"
+#include "enh/gfx/postprocessing/FilmicTMOperator.h"
 
 namespace viscom {
 
@@ -25,6 +27,7 @@ namespace viscom {
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
             if (ImGui::Begin("", nullptr, ImGuiWindowFlags_ShowBorders)) {
                 GetDOF()->RenderParameterSliders();
+                GetToneMapping()->RenderParameterSliders();
             }
             ImGui::End();
         });
