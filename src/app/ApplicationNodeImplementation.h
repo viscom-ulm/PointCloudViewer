@@ -13,6 +13,7 @@
 namespace viscom::enh {
     class DepthOfField;
     class FilmicTMOperator;
+    class BloomEffect;
 }
 
 namespace viscom {
@@ -41,6 +42,7 @@ namespace viscom {
     protected:
         enh::DepthOfField* GetDOF() { return dof_.get(); }
         enh::FilmicTMOperator* GetToneMapping() { return tm_.get(); }
+        enh::BloomEffect* GetBloom() { return bloom_.get(); }
 
     private:
         /** Holds the shader program for drawing the background. */
@@ -81,6 +83,7 @@ namespace viscom {
 
         std::vector<FrameBuffer> sceneFBOs_;
         std::unique_ptr<enh::DepthOfField> dof_;
+        std::unique_ptr<enh::BloomEffect> bloom_;
         std::unique_ptr<enh::FilmicTMOperator> tm_;
     };
 }

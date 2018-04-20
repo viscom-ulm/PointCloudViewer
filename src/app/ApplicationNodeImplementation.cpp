@@ -102,6 +102,7 @@ namespace viscom {
         sceneFBOs_ = CreateOffscreenBuffers(sceneFBODesc);
 
         dof_ = std::make_unique<enh::DepthOfField>(this);
+        bloom_ = std::make_unique<enh::BloomEffect>(this);
         tm_ = std::make_unique<enh::FilmicTMOperator>(this);
     }
 
@@ -168,7 +169,8 @@ namespace viscom {
         });
 
         dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[2], sceneFBO, 1);
-        tm_->ApplyTonemapping(sceneFBO->GetTextures()[1], &fbo);
+        tm_->ApplyTonemapping(sceneFBO->GetTextures()[1], sceneFBO, 0);
+        bloom_->ApplyEffect(sceneFBO->GetTextures()[0], &fbo);
 
         // fbo.DrawToFBO([this]() {});
     }

@@ -28,6 +28,7 @@ namespace viscom {
             if (ImGui::Begin("", nullptr, ImGuiWindowFlags_ShowBorders)) {
                 GetDOF()->RenderParameterSliders();
                 GetToneMapping()->RenderParameterSliders();
+                GetBloom()->RenderParameterSliders();
             }
             ImGui::End();
         });
