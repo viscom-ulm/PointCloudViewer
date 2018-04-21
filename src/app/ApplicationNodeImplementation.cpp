@@ -11,7 +11,6 @@
 #include "core/glfw.h"
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
-#include <glbinding/callbacks.h>
 #include <imgui.h>
 #include <iostream>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -183,6 +182,8 @@ namespace viscom {
         vboBackgroundGrid_ = 0;
 
         dof_ = nullptr;
+        tm_ = nullptr;
+        bloom_ = nullptr;
         sceneFBOs_.clear();
 
         teapotMesh_ = nullptr;

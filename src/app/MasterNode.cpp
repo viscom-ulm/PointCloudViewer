@@ -25,7 +25,8 @@ namespace viscom {
     {
         fbo.DrawToFBO([this]() {
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
-            if (ImGui::Begin("", nullptr, ImGuiWindowFlags_ShowBorders)) {
+            ImGui::StyleColorsClassic();
+            if (ImGui::Begin("", nullptr)) {
                 GetDOF()->RenderParameterSliders();
                 GetToneMapping()->RenderParameterSliders();
                 GetBloom()->RenderParameterSliders();
