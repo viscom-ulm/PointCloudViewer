@@ -23,11 +23,8 @@ int main(int argc, char** argv)
     auto worker = g3::LogWorker::createLogWorker();
     auto handle = worker->addSink(std::make_unique<vku::FileSink>(name, directory, false), &vku::FileSink::fileWrite);
 
-    g3::log_levels::disable(WARNING);
-
-#ifndef NDEBUG
-    g3::log_levels::enable(WARNING);
-#endif
+    if constexpr (viscom::DEBUG_MODE) g3::log_levels::enable(WARNING);
+    else g3::log_levels::disable(WARNING);
 
     initializeLogging(worker.get());
 

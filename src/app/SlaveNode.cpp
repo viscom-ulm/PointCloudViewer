@@ -18,9 +18,7 @@ namespace viscom {
 
     void SlaveNode::Draw2D(FrameBuffer& fbo)
     {
-#ifdef VISCOM_CLIENTGUI
-        ImGui::ShowTestWindow();
-#endif
+        if constexpr (SHOW_CLIENT_GUI) ImGui::ShowTestWindow();
 
         // always do this call last!
         SlaveNodeInternal::Draw2D(fbo);
