@@ -9,6 +9,7 @@
 #pragma once
 
 #include "enh/ApplicationNodeBase.h"
+#include "core/camera/ArcballCamera.h"
 
 namespace viscom::enh {
     class DepthOfField;
@@ -17,6 +18,26 @@ namespace viscom::enh {
 }
 
 namespace viscom {
+
+    enum class PCType {
+        AO,
+        MATTE,
+        SUBSURFACE
+    };
+
+    struct PointCloudPointAO {
+        glm::vec3 position_;
+        glm::vec3 normal_;
+        float ao_;
+    };
+
+    struct PointCloudPointMatte {
+
+    };
+
+    struct PointCloudPointSubsurface {
+
+    };
 
     class MeshRenderable;
 
@@ -38,6 +59,9 @@ namespace viscom {
 
         virtual bool KeyboardCallback(int key, int scancode, int action, int mods) override;
         virtual bool MouseButtonCallback(int button, int action) override;
+        virtual bool MousePosCallback(double x, double y) override;
+        virtual bool MouseScrollCallback(double xoffset, double yoffset) override;
+
 
     protected:
         enh::DepthOfField* GetDOF() { return dof_.get(); }
@@ -45,39 +69,7 @@ namespace viscom {
         enh::BloomEffect* GetBloom() { return bloom_.get(); }
 
     private:
-        /** Holds the shader program for drawing the background. */
-        std::shared_ptr<GPUProgram> backgroundProgram_;
-        /** Holds the location of the MVP matrix. */
-        GLint backgroundMVPLoc_ = -1;
-
-        /** Holds the shader program for drawing the foreground triangle. */
-        std::shared_ptr<GPUProgram> triangleProgram_;
-        /** Holds the location of the MVP matrix. */
-        GLint triangleMVPLoc_ = -1;
-
-        /** Holds the shader program for drawing the foreground teapot. */
-        std::shared_ptr<GPUProgram> teapotProgram_;
-        /** Holds the location of the model matrix. */
-        GLint teapotModelMLoc_ = -1;
-        /** Holds the location of the normal matrix. */
-        GLint teapotNormalMLoc_ = -1;
-        /** Holds the location of the VP matrix. */
-        GLint teapotVPLoc_ = -1;
-
-        /** Holds the number of vertices of the background grid. */
-        unsigned int numBackgroundVertices_ = 0;
-        /** Holds the vertex buffer for the background grid. */
-        GLuint vboBackgroundGrid_ = 0;
-        /** Holds the vertex array object for the background grid. */
-        GLuint vaoBackgroundGrid_ = 0;
-
-        /** Holds the teapot mesh. */
-        std::shared_ptr<Mesh> teapotMesh_;
-        /** Holds the teapot mesh renderable. */
-        // std::unique_ptr<MeshRenderable> teapotRenderable_;
-
-        glm::mat4 triangleModelMatrix_;
-        glm::mat4 teapotModelMatrix_;
+        ArcballCamera camera_;
         glm::vec3 camPos_;
         glm::vec3 camRot_;
 

@@ -14,6 +14,7 @@
 #include "core/g3log/filesink.h"
 #include "core/ApplicationNodeInternal.h"
 #include "core/initialize.h"
+#include "app/MasterNode.h"
 
 
 int main(int argc, char** argv)
@@ -34,6 +35,9 @@ int main(int argc, char** argv)
     if (argc > 1) config = viscom::LoadConfiguration(argv[1]);
     else config = viscom::LoadConfiguration("framework.cfg");
     config.resourceSearchPaths_.emplace_back(config.baseDirectory_ + "extern/fwenh/resources/");
+    config.resourceSearchPaths_.emplace_back("");
+
+    if (argc > 2) viscom::MasterNode::SetSingleFile(argv[2]);
 
     auto appNode = Application_Init(config);
 
