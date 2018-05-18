@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
-SET(APP_NAME ViscomFramework)
+SET(APP_NAME PointCloudViewer)
 
 PROJECT(${APP_NAME})
 
