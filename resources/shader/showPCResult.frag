@@ -2,11 +2,11 @@
 
 in vec3 vertPosition;
 in vec3 vertNormal;
-in float vertAO;
+in vec3 vertResult;
 
 out vec4 color;
 
 void main()
 {
-    color = vec4(vertAO, vertAO, vertAO, 1.0);
+    color = vec4(vertResult, 1.0);
 }

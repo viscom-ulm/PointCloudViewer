@@ -2,9 +2,12 @@
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
-layout(location = 2) in float ao;
+layout(location = 2) in vec3 albedo;
+layout(location = 3) in vec3 directIllumination;
+layout(location = 4) in vec3 globalIllumination;
 
 uniform mat4 MVP;
+uniform int renderType;
 
 out vec3 vertPosition;
 out vec3 vertNormal;
@@ -17,5 +20,7 @@ void main()
 
     vertPosition = 0.1f * position;
     vertNormal = normal;
-    vertResult = vec3(ao);
+    if (renderType == 0) vertResult = globalIllumination;
+    else if (renderType == 1) vertResult = albedo;
+    else if (renderType == 2) vertResult = directIllumination;
 }

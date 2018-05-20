@@ -39,15 +39,31 @@ namespace viscom {
     {
         enh::ApplicationNodeBase::InitOpenGL();
 
-        FrameBufferDescriptor sceneFBODesc{ {
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT) } }, {} };
-        sceneFBOs_ = CreateOffscreenBuffers(sceneFBODesc);
+        aoProgram_ = GetGPUProgramManager().GetResource("ao", std::vector<std::string>{ "showAO.vert", "showPCResult.frag" });
+        aoMVPLoc_ = aoProgram_->getUniformLocation("MVP");
 
-        dof_ = std::make_unique<enh::DepthOfField>(this);
-        bloom_ = std::make_unique<enh::BloomEffect>(this);
-        tm_ = std::make_unique<enh::FilmicTMOperator>(this);
+        matteProgram_ = GetGPUProgramManager().GetResource("matte", std::vector<std::string>{ "showMatte.vert", "showPCResult.frag" });
+        matteMVPLoc_ = matteProgram_->getUniformLocation("MVP");
+        matteRenderTypeLoc_ = matteProgram_->getUniformLocation("renderType");
+
+        subsurfaceProgram_ = GetGPUProgramManager().GetResource("subsurface", std::vector<std::string>{ "showSubsurface.vert", "showPCResult.frag" });
+        subsurfaceMVPLoc_ = subsurfaceProgram_->getUniformLocation("MVP");
+        subsurfaceRenderTypeLoc_ = subsurfaceProgram_->getUniformLocation("renderType");
+
+        gl::glGenBuffers(1, &vboPointCloud_);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
+        gl::glGenVertexArrays(1, &vaoPointCloud_);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+
+        // FrameBufferDescriptor sceneFBODesc{ {
+        //         FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
+        //         FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
+        //         FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT) } }, {} };
+        // sceneFBOs_ = CreateOffscreenBuffers(sceneFBODesc);
+        // 
+        // dof_ = std::make_unique<enh::DepthOfField>(this);
+        // bloom_ = std::make_unique<enh::BloomEffect>(this);
+        // tm_ = std::make_unique<enh::FilmicTMOperator>(this);
     }
 
     void ApplicationNodeImplementation::UpdateFrame(double currentTime, double elapsedTime)
@@ -66,10 +82,10 @@ namespace viscom {
 
     void ApplicationNodeImplementation::ClearBuffer(FrameBuffer& fbo)
     {
-        SelectOffscreenBuffer(sceneFBOs_)->DrawToFBO([]() {
-            gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
-        });
+        // SelectOffscreenBuffer(sceneFBOs_)->DrawToFBO([]() {
+        //     gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        //     gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+        // });
 
         fbo.DrawToFBO([]() {
             gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -79,82 +95,69 @@ namespace viscom {
 
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
-        auto sceneFBO = SelectOffscreenBuffer(sceneFBOs_);
-        sceneFBO->DrawToFBO([this]() {
+        // auto sceneFBO = SelectOffscreenBuffer(sceneFBOs_);
+        // sceneFBO->DrawToFBO([this]() {
+        // });
+
+        fbo.DrawToFBO([this]() {
+            DrawPointCloud();
         });
 
-        dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[2], sceneFBO, 1);
-        tm_->ApplyTonemapping(sceneFBO->GetTextures()[1], sceneFBO, 0);
-        bloom_->ApplyEffect(sceneFBO->GetTextures()[0], &fbo);
+        // dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[2], sceneFBO, 1);
+        // tm_->ApplyTonemapping(sceneFBO->GetTextures()[1], sceneFBO, 0);
+        // bloom_->ApplyEffect(sceneFBO->GetTextures()[0], &fbo);
 
         // fbo.DrawToFBO([this]() {});
     }
 
-    void ApplicationNodeImplementation::CleanUp()
+    void ApplicationNodeImplementation::DrawPointCloud()
     {
-        dof_ = nullptr;
-        tm_ = nullptr;
-        bloom_ = nullptr;
-        sceneFBOs_.clear();
+        gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);
 
-        ApplicationNodeBase::CleanUp();
+        gl::glBindVertexArray(vaoPointCloud_);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
+
+        auto MVP = GetCamera()->GetViewPerspectiveMatrix();
+        if (pcType_ == PCType::AO) {
+            gl::glUseProgram(aoProgram_->getProgramId());
+            gl::glUniformMatrix4fv(aoMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
+            gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
+        }
+
+        if (pcType_ == PCType::MATTE) {
+            gl::glUseProgram(matteProgram_->getProgramId());
+            gl::glUniformMatrix4fv(matteMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
+            gl::glUniform1i(matteRenderTypeLoc_, matteRenderType_);
+            gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
+        }
+
+        if (pcType_ == PCType::SUBSURFACE) {
+            gl::glUseProgram(subsurfaceProgram_->getProgramId());
+            gl::glUniformMatrix4fv(subsurfaceMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
+            gl::glUniform1i(subsurfaceRenderTypeLoc_, subsurfaceRenderType_);
+            gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
+        }
+
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+        gl::glBindVertexArray(0);
+        gl::glUseProgram(0);
+
+        gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
     }
 
-    bool ApplicationNodeImplementation::KeyboardCallback(int key, int scancode, int action, int mods)
+    void ApplicationNodeImplementation::CleanUp()
     {
-        if (ApplicationNodeBase::KeyboardCallback(key, scancode, action, mods)) return true;
+        if (vaoPointCloud_ != 0) gl::glDeleteVertexArrays(1, &vaoPointCloud_);
+        vaoPointCloud_ = 0;
+        if (vboPointCloud_ != 0) gl::glDeleteBuffers(1, &vboPointCloud_);
+        vboPointCloud_ = 0;
 
-        switch (key)
-        {
-        case GLFW_KEY_W:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camPos_ += glm::vec3(0.0, 0.0, -0.001);
-            return true;
+        // dof_ = nullptr;
+        // tm_ = nullptr;
+        // bloom_ = nullptr;
+        // sceneFBOs_.clear();
 
-        case GLFW_KEY_S:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camPos_ += glm::vec3(0.0, 0.0, 0.001);
-            return true;
-
-        case GLFW_KEY_A:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camPos_ += glm::vec3(-0.001, 0.0, 0.0);
-            return true;
-
-        case GLFW_KEY_D:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camPos_ += glm::vec3(0.001, 0.0, 0.0);
-            return true;
-
-        case GLFW_KEY_LEFT_CONTROL:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camPos_ += glm::vec3(0.0, -0.001, 0.0);
-            return true;
-
-        case GLFW_KEY_LEFT_SHIFT:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camPos_ += glm::vec3(0.0, 0.001, 0.0);
-            return true;
-
-        case GLFW_KEY_UP:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camRot_ += glm::vec3(-0.002, 0.0, 0.0);
-            return true;
-
-        case GLFW_KEY_DOWN:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camRot_ += glm::vec3(0.002, 0.0, 0.0);
-            return true;
-
-        case GLFW_KEY_LEFT:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camRot_ += glm::vec3(0.0, -0.002, 0.0);
-            return true;
-
-        case GLFW_KEY_RIGHT:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camRot_ += glm::vec3(0.0, 0.002, 0.0);
-            return true;
-
-        case GLFW_KEY_Q:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camRot_ += glm::vec3(0.0, 0.0, -0.002);
-            return true;
-
-        case GLFW_KEY_E:
-            if (action == GLFW_REPEAT || action == GLFW_PRESS) camRot_ += glm::vec3(0.0, 0.0, 0.002);
-            return true;
-        }
-        return false;
+        ApplicationNodeBase::CleanUp();
     }
 
     bool ApplicationNodeImplementation::MouseButtonCallback(int button, int action)
@@ -175,5 +178,85 @@ namespace viscom {
         return true;
     }
 
+    void ApplicationNodeImplementation::LoadPointCloudGPUAO(std::vector<PointCloudPointAO>& pointCloud)
+    {
+        using PointCloudPoint = PointCloudPointAO;
+
+        pcAO_.swap(pointCloud);
+        pcMatte_.clear();
+        pcSubsurface_.clear();
+        pcType_ = PCType::AO;
+
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
+        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcAO_.size() * sizeof(PointCloudPoint), pcAO_.data(), gl::GL_STATIC_DRAW);
+
+        gl::glBindVertexArray(vaoPointCloud_);
+        gl::glEnableVertexAttribArray(0);
+        gl::glVertexAttribPointer(0, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, position_)));
+        gl::glEnableVertexAttribArray(1);
+        gl::glVertexAttribPointer(1, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, normal_)));
+        gl::glEnableVertexAttribArray(2);
+        gl::glVertexAttribPointer(2, 1, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, ao_)));
+        gl::glBindVertexArray(0);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+    }
+
+    void ApplicationNodeImplementation::LoadPointCloudGPUMatte(std::vector<PointCloudPointMatte>& pointCloud)
+    {
+        using PointCloudPoint = PointCloudPointMatte;
+
+        pcAO_.clear();
+        pcMatte_.swap(pointCloud);
+        pcSubsurface_.clear();
+        pcType_ = PCType::MATTE;
+
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
+        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcAO_.size() * sizeof(PointCloudPoint), pcAO_.data(), gl::GL_STATIC_DRAW);
+
+        gl::glBindVertexArray(vaoPointCloud_);
+        gl::glEnableVertexAttribArray(0);
+        gl::glVertexAttribPointer(0, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, position_)));
+        gl::glEnableVertexAttribArray(1);
+        gl::glVertexAttribPointer(1, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, normal_)));
+        gl::glEnableVertexAttribArray(2);
+        gl::glVertexAttribPointer(2, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, albedo_)));
+        gl::glEnableVertexAttribArray(3);
+        gl::glVertexAttribPointer(3, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, directIllumination_)));
+        gl::glEnableVertexAttribArray(4);
+        gl::glVertexAttribPointer(4, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, globalIllumination_)));
+        gl::glBindVertexArray(0);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+    }
+
+    void ApplicationNodeImplementation::LoadPointCloudGPUSubsurface(std::vector<PointCloudPointSubsurface>& pointCloud)
+    {
+        using PointCloudPoint = PointCloudPointSubsurface;
+
+        pcAO_.clear();
+        pcMatte_.clear();
+        pcSubsurface_.swap(pointCloud);
+        pcType_ = PCType::SUBSURFACE;
+
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
+        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcAO_.size() * sizeof(PointCloudPoint), pcAO_.data(), gl::GL_STATIC_DRAW);
+
+        gl::glBindVertexArray(vaoPointCloud_);
+        gl::glEnableVertexAttribArray(0);
+        gl::glVertexAttribPointer(0, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, position_)));
+        gl::glEnableVertexAttribArray(1);
+        gl::glVertexAttribPointer(1, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, normal_)));
+        gl::glEnableVertexAttribArray(2);
+        gl::glVertexAttribPointer(2, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, albedo_)));
+        gl::glEnableVertexAttribArray(3);
+        gl::glVertexAttribPointer(3, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, sigma_tp_)));
+        gl::glEnableVertexAttribArray(4);
+        gl::glVertexAttribPointer(4, 1, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, eta_)));
+        gl::glEnableVertexAttribArray(5);
+        gl::glVertexAttribPointer(5, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, directIllumination_)));
+        gl::glEnableVertexAttribArray(6);
+        gl::glVertexAttribPointer(6, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, globalIllumination_)));
+        gl::glBindVertexArray(0);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+    }
 
 }
