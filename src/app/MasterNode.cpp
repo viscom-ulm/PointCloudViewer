@@ -97,7 +97,14 @@ namespace viscom {
                 ImGui::SameLine();
                 static bool loadModel;
                 ImGui::Checkbox("Load Model", &loadModel);
-                if (inputFileSelected_) LoadPointCloud(selectedFilename, loadModel);
+                if (inputFileSelected_) {
+                    try {
+                        LoadPointCloud(selectedFilename, loadModel);
+                    }
+                    catch (std::invalid_argument e) {
+                        inputFileSelected_ = false;
+                    }
+                }
 
                 ImGui::End();
             }
@@ -172,7 +179,12 @@ namespace viscom {
 
         FrameBuffer fbo(800, 600, headlessFBODesc);
 
-        LoadPointCloud(singleFile_, loadModel);
+        try {
+            LoadPointCloud(singleFile_, loadModel);
+        }
+        catch (std::invalid_argument e) {
+            std::cout << e.what() << std::endl;
+        }
 
         fbo.DrawToFBO([this]() {
             gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -196,7 +208,7 @@ namespace viscom {
         else if (splitFilename[1] == "subsurface") LoadPointCloudSubsurface(pointCloud);
         else {
             LOG(WARNING) << "Wrong file format selected.";
-            inputFileSelected_ = false;
+            throw std::invalid_argument("Wrong file format selected.");
         }
 
         // TODO: handle model loading. [5/20/2018 Sebastian Maisch]
