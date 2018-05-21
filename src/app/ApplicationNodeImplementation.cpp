@@ -23,6 +23,7 @@
 #include "enh/gfx/postprocessing/DepthOfField.h"
 #include "enh/gfx/postprocessing/BloomEffect.h"
 #include "enh/gfx/postprocessing/FilmicTMOperator.h"
+#include "enh/gfx/env/EnvironmentMapRenderer.h"
 #include "app/gfx/mesh/MeshRenderable.h"
 #include "app/Vertices.h"
 
@@ -83,6 +84,8 @@ namespace viscom {
 
         deferredDrawIndices_ = { 0, 1, 2 };
         distanceSumDrawIndices_ = { 3, 4 };
+
+        envMapRenderer_ = std::make_unique<enh::EnvironmentMapRenderer>(this);
         // 
         // dof_ = std::make_unique<enh::DepthOfField>(this);
         // bloom_ = std::make_unique<enh::BloomEffect>(this);
@@ -123,6 +126,12 @@ namespace viscom {
 
     void ApplicationNodeImplementation::DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO)
     {
+        if (envMap_) {
+            fbo.DrawToFBO([this]() {
+                envMapRenderer_->Draw(*GetCamera(), envMap_->getTextureId());
+            });
+        }
+
         if (!mesh_) {
             fbo.DrawToFBO([this]() {
                 DrawPointCloudPoints();

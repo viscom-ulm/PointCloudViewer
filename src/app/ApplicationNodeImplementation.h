@@ -16,6 +16,7 @@ namespace viscom::enh {
     class FilmicTMOperator;
     class BloomEffect;
     class MeshRenderable;
+    class EnvironmentMapRenderer;
 }
 
 namespace viscom {
@@ -150,6 +151,7 @@ namespace viscom {
         glm::mat4 meshModel_;
         /** Holds the background environment map. */
         std::shared_ptr<Texture> envMap_;
+        std::unique_ptr<enh::EnvironmentMapRenderer> envMapRenderer_;
 
         /** Holds the program for deferred mesh rendering. */
         std::shared_ptr<GPUProgram> deferredProgram_;
