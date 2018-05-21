@@ -17,6 +17,7 @@
 #include <glbinding/gl/gl.h>
 #include <filesystem>
 #include <fstream>
+#include <cstdlib>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace viscom {
@@ -151,6 +152,7 @@ namespace viscom {
 
         auto checkPCFile = [](const fs::path& p) { 
             if (!(p.extension().string() == ".txt" || p.extension().string() == ".TXT")) return false;
+            return true;
         };
 
         for (auto& p : fs::directory_iterator(dir)) {
@@ -179,6 +181,12 @@ namespace viscom {
 
         FrameBuffer fbo(800, 600, headlessFBODesc);
 
+        FrameBufferDescriptor headlessDefferedFBODesc{ {
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } },{} };
+
+        FrameBuffer deferredFBO(800, 600, headlessDefferedFBODesc);
+
         try {
             LoadPointCloud(singleFile_, loadModel);
         }
@@ -189,13 +197,21 @@ namespace viscom {
         fbo.DrawToFBO([this]() {
             gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
-
-            DrawPointCloud();
         });
+
+        deferredFBO.DrawToFBO([this]() {
+            gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+        });
+
+        DrawPointCloud(fbo, deferredFBO);
 
         auto out_filename = pointCloud.substr(0, pointCloud.size() - 3) + "png";
         enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
         enh::GLTexture::SaveTextureToFile(fbo.GetTextures()[0], texDesc, glm::uvec3(800, 600, 1), out_filename);
+
+        SetMesh(nullptr, 0.0f, 0.0f);
+        SetEnvironmentMap(nullptr);
     }
 
     void MasterNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
@@ -211,7 +227,33 @@ namespace viscom {
             throw std::invalid_argument("Wrong file format selected.");
         }
 
-        // TODO: handle model loading. [5/20/2018 Sebastian Maisch]
+        if (loadModel) {
+            std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
+
+            std::string line;
+            std::size_t lineCounter = static_cast<std::size_t>(std::atoi(splitFilename[5].c_str()));
+            float meshTheta, meshPhi;
+
+            if (splitFilename[1] == "matte") lineCounter -= 20000;
+            else if (splitFilename[1] == "subsurface") lineCounter -= 40000;
+
+            while (params_in.good()) {
+                std::getline(params_in, line);
+                if (--lineCounter != 0) continue;
+
+                auto splitParameters = utils::split(line, ',');
+                assert(splitParameters[0] == splitFilename[5]);
+                meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
+                meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
+                break;
+            }
+
+            auto envMapFilename = inputDir_ + "/" + splitFilename[2];
+            auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[3] + "/" + splitFilename[4] + "/models/model_normalized.obj";
+            SetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
+            SetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
+
+        }
     }
 
     void MasterNode::LoadPointCloudAO(const std::string& pointCloud)

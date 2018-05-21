@@ -23,7 +23,8 @@
 #include "enh/gfx/postprocessing/DepthOfField.h"
 #include "enh/gfx/postprocessing/BloomEffect.h"
 #include "enh/gfx/postprocessing/FilmicTMOperator.h"
-// #include "core/gfx/mesh/MeshRenderable.h"
+#include "app/gfx/mesh/MeshRenderable.h"
+#include "app/Vertices.h"
 
 namespace viscom {
 
@@ -50,16 +51,38 @@ namespace viscom {
         subsurfaceMVPLoc_ = subsurfaceProgram_->getUniformLocation("MVP");
         subsurfaceRenderTypeLoc_ = subsurfaceProgram_->getUniformLocation("renderType");
 
+
+        deferredProgram_ = GetGPUProgramManager().GetResource("deferredMesh", std::vector<std::string>{ "deferredMesh.vert", "deferredMesh.frag" });
+        deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection" });
+
+        distanceSumAOProgram_ = GetGPUProgramManager().GetResource("distanceSumAO", std::vector<std::string>{ "distanceSumAO.vert", "distanceSum.frag" });
+        distanceSumAOUniformLocations_ = distanceSumAOProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize" });
+
+        distanceSumMatteProgram_ = GetGPUProgramManager().GetResource("distanceSumMatte", std::vector<std::string>{ "distanceSumMatte.vert", "distanceSum.frag" });
+        distanceSumMatteUniformLocations_ = distanceSumMatteProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize" });
+
+        distanceSumSubsurfaceProgram_ = GetGPUProgramManager().GetResource("distanceSumSubsurface", std::vector<std::string>{ "distanceSumSubsurface.vert", "distanceSum.frag" });
+        distanceSumSubsurfaceUniformLocations_ = distanceSumSubsurfaceProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize" });
+
+        finalQuad_ = std::make_unique<FullscreenQuad>("finalComposite.frag", this);
+        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture" });
+
         gl::glGenBuffers(1, &vboPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
         gl::glGenVertexArrays(1, &vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
 
-        // FrameBufferDescriptor sceneFBODesc{ {
-        //         FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
-        //         FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) },
-        //         FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT) } }, {} };
-        // sceneFBOs_ = CreateOffscreenBuffers(sceneFBODesc);
+        FrameBufferDescriptor deferredFBODesc{ {
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // position
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // normal
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // color
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // direct illumination
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // global illumination
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } }, {} };
+        deferredFBOs_ = CreateOffscreenBuffers(deferredFBODesc);
+
+        deferredDrawIndices_ = { 0, 1, 2 };
+        distanceSumDrawIndices_ = { 3, 4 };
         // 
         // dof_ = std::make_unique<enh::DepthOfField>(this);
         // bloom_ = std::make_unique<enh::BloomEffect>(this);
@@ -69,23 +92,14 @@ namespace viscom {
     void ApplicationNodeImplementation::UpdateFrame(double currentTime, double elapsedTime)
     {
         camera_.UpdateCamera(elapsedTime, this);
-
-        // GetCamera()->SetPosition(camPos_);
-        // glm::quat pitchQuat = glm::angleAxis(camRot_.x, glm::vec3(1.0f, 0.0f, 0.0f));
-        // glm::quat yawQuat = glm::angleAxis(camRot_.y, glm::vec3(0.0f, 1.0f, 0.0f));
-        // glm::quat rollQuat = glm::angleAxis(camRot_.z, glm::vec3(0.0f, 0.0f, 1.0f));
-        // GetCamera()->SetOrientation(yawQuat * pitchQuat * rollQuat);
-
-        // triangleModelMatrix_ = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)), 0.1f * static_cast<float>(currentTime), glm::vec3(0.0f, 1.0f, 0.0f));
-        // teapotModelMatrix_ = glm::scale(glm::rotate(glm::translate(glm::mat4(0.01f), glm::vec3(-3.0f, 0.0f, -5.0f)), static_cast<float>(currentTime), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.01f));
     }
 
     void ApplicationNodeImplementation::ClearBuffer(FrameBuffer& fbo)
     {
-        // SelectOffscreenBuffer(sceneFBOs_)->DrawToFBO([]() {
-        //     gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        //     gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
-        // });
+        SelectOffscreenBuffer(deferredFBOs_)->DrawToFBO([]() {
+             gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+             gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+        });
 
         fbo.DrawToFBO([]() {
             gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -95,13 +109,10 @@ namespace viscom {
 
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
-        // auto sceneFBO = SelectOffscreenBuffer(sceneFBOs_);
+        auto deferredFBO = SelectOffscreenBuffer(deferredFBOs_);
+        DrawPointCloud(fbo, *deferredFBO);
         // sceneFBO->DrawToFBO([this]() {
         // });
-
-        fbo.DrawToFBO([this]() {
-            DrawPointCloud();
-        });
 
         // dof_->ApplyEffect(*GetCamera(), sceneFBO->GetTextures()[0], sceneFBO->GetTextures()[2], sceneFBO, 1);
         // tm_->ApplyTonemapping(sceneFBO->GetTextures()[1], sceneFBO, 0);
@@ -110,7 +121,29 @@ namespace viscom {
         // fbo.DrawToFBO([this]() {});
     }
 
-    void ApplicationNodeImplementation::DrawPointCloud()
+    void ApplicationNodeImplementation::DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO)
+    {
+        if (!mesh_) {
+            fbo.DrawToFBO([this]() {
+                DrawPointCloudPoints();
+            });
+        }
+        else {
+            deferredFBO.DrawToFBO(deferredDrawIndices_, [this]() {
+                DrawMeshDeferred();
+            });
+
+            deferredFBO.DrawToFBO(distanceSumDrawIndices_, [this, &deferredFBO]() {
+                DrawPointCloudDistanceSum(deferredFBO);
+            });
+
+            fbo.DrawToFBO([this, &deferredFBO]() {
+                DrawPointCloudOnMesh(deferredFBO);
+            });
+        }
+    }
+
+    void ApplicationNodeImplementation::DrawPointCloudPoints()
     {
         gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);
 
@@ -145,6 +178,110 @@ namespace viscom {
         gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
     }
 
+    void ApplicationNodeImplementation::DrawMeshDeferred()
+    {
+        auto VP = GetCamera()->GetViewPerspectiveMatrix();
+
+        gl::glUseProgram(deferredProgram_->getProgramId());
+        gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
+        meshRenderable_->Draw(meshModel_);
+
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+        gl::glBindVertexArray(0);
+        gl::glUseProgram(0);
+    }
+
+    void ApplicationNodeImplementation::DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO)
+    {
+        gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);
+
+        gl::glBindVertexArray(vaoPointCloud_);
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
+
+        gl::glEnable(gl::GL_BLEND);
+        gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
+        gl::glBlendFuncSeparate(gl::GL_ONE, gl::GL_ONE, gl::GL_ONE, gl::GL_ONE);
+
+        auto MVP = GetCamera()->GetViewPerspectiveMatrix();
+        if (pcType_ == PCType::AO) {
+            gl::glUseProgram(distanceSumAOProgram_->getProgramId());
+            gl::glUniformMatrix4fv(distanceSumAOUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
+
+            gl::glActiveTexture(gl::GL_TEXTURE2);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[0]);
+            gl::glUniform1i(distanceSumAOUniformLocations_[1], 2);
+
+            gl::glActiveTexture(gl::GL_TEXTURE3);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
+            gl::glUniform1i(distanceSumAOUniformLocations_[2], 3);
+            gl::glUniform1f(distanceSumAOUniformLocations_[3], 1.0f);
+            gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
+        }
+
+        if (pcType_ == PCType::MATTE) {
+            gl::glUseProgram(distanceSumMatteProgram_->getProgramId());
+            gl::glUniformMatrix4fv(distanceSumMatteUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
+
+            gl::glActiveTexture(gl::GL_TEXTURE2);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[0]);
+            gl::glUniform1i(distanceSumMatteUniformLocations_[1], 2);
+
+            gl::glActiveTexture(gl::GL_TEXTURE3);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
+            gl::glUniform1i(distanceSumMatteUniformLocations_[2], 3);
+            gl::glUniform1f(distanceSumMatteUniformLocations_[3], 1.0f);
+            gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
+        }
+
+        if (pcType_ == PCType::SUBSURFACE) {
+            gl::glUseProgram(distanceSumSubsurfaceProgram_->getProgramId());
+            gl::glUniformMatrix4fv(distanceSumSubsurfaceUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
+
+            gl::glActiveTexture(gl::GL_TEXTURE2);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[0]);
+            gl::glUniform1i(distanceSumSubsurfaceUniformLocations_[1], 2);
+
+            gl::glActiveTexture(gl::GL_TEXTURE3);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
+            gl::glUniform1i(distanceSumSubsurfaceUniformLocations_[2], 3);
+            gl::glUniform1f(distanceSumSubsurfaceUniformLocations_[3], 1.0f);
+            gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
+        }
+
+        gl::glDisable(gl::GL_BLEND);
+
+        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+        gl::glBindVertexArray(0);
+        gl::glUseProgram(0);
+
+        gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
+    }
+
+    void ApplicationNodeImplementation::DrawPointCloudOnMesh(const FrameBuffer& deferredFBO)
+    {
+        gl::glUseProgram(finalQuad_->GetGPUProgram()->getProgramId());
+
+        for (int i = 0; i < 5; ++i) {
+            gl::glActiveTexture(gl::GL_TEXTURE0 + i);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[i]);
+            gl::glUniform1i(finalUniformLocations_[i], i);
+        }
+
+        // gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
+        finalQuad_->Draw();
+
+        gl::glUseProgram(0);
+    }
+
+    void ApplicationNodeImplementation::SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi)
+    {
+        mesh_ = std::move(mesh);
+        meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
+
+        meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
+        meshModel_ = glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f)) * meshModel_;
+    }
+
     void ApplicationNodeImplementation::CleanUp()
     {
         if (vaoPointCloud_ != 0) gl::glDeleteVertexArrays(1, &vaoPointCloud_);
@@ -156,6 +293,7 @@ namespace viscom {
         // tm_ = nullptr;
         // bloom_ = nullptr;
         // sceneFBOs_.clear();
+        deferredFBOs_.clear();
 
         ApplicationNodeBase::CleanUp();
     }

@@ -15,6 +15,7 @@ namespace viscom::enh {
     class DepthOfField;
     class FilmicTMOperator;
     class BloomEffect;
+    class MeshRenderable;
 }
 
 namespace viscom {
@@ -49,8 +50,6 @@ namespace viscom {
         glm::vec3 globalIllumination_;
     };
 
-    class MeshRenderable;
-
     class ApplicationNodeImplementation : public enh::ApplicationNodeBase
     {
     public:
@@ -77,7 +76,7 @@ namespace viscom {
         void LoadPointCloudGPUMatte(std::vector<PointCloudPointMatte>& pointCloud);
         void LoadPointCloudGPUSubsurface(std::vector<PointCloudPointSubsurface>& pointCloud);
 
-        void DrawPointCloud();
+        void DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO);
 
         PCType GetPointCloudType() const { return pcType_; }
         int GetMatteRenderType() const { return matteRenderType_; }
@@ -85,11 +84,19 @@ namespace viscom {
         int GetSubsurfaceRenderType() const { return subsurfaceRenderType_; }
         void SetSubsurfaceRenderType(int rt) { subsurfaceRenderType_ = rt; }
 
+        void SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi);
+        void SetEnvironmentMap(std::shared_ptr<Texture> envMap) { envMap_ = std::move(envMap); }
+
         // enh::DepthOfField* GetDOF() { return dof_.get(); }
         // enh::FilmicTMOperator* GetToneMapping() { return tm_.get(); }
         // enh::BloomEffect* GetBloom() { return bloom_.get(); }
 
     private:
+        void DrawPointCloudPoints();
+        void DrawMeshDeferred();
+        void DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO);
+        void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
+
         ArcballCamera camera_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
@@ -111,25 +118,65 @@ namespace viscom {
         /** Holds the shader program for drawing ambient occlusion. */
         std::shared_ptr<GPUProgram> aoProgram_;
         /** Holds the location of the MVP matrix. */
-        GLint aoMVPLoc_ = -1;
+        gl::GLint aoMVPLoc_ = -1;
 
         /** Holds the shader program for drawing matte results. */
         std::shared_ptr<GPUProgram> matteProgram_;
         /** Holds the location of the MVP matrix. */
-        GLint matteMVPLoc_ = -1;
+        gl::GLint matteMVPLoc_ = -1;
         /** Holds the location of render type. */
-        GLint matteRenderTypeLoc_ = -1;
+        gl::GLint matteRenderTypeLoc_ = -1;
 
         /** Holds the shader program for drawing subsurface results. */
         std::shared_ptr<GPUProgram> subsurfaceProgram_;
         /** Holds the location of the MVP matrix. */
-        GLint subsurfaceMVPLoc_ = -1;
+        gl::GLint subsurfaceMVPLoc_ = -1;
         /** Holds the location of render type. */
-        GLint subsurfaceRenderTypeLoc_ = -1;
+        gl::GLint subsurfaceRenderTypeLoc_ = -1;
 
         /** Holds the vertex buffer for the point could. */
-        GLuint vboPointCloud_ = 0;
+        gl::GLuint vboPointCloud_ = 0;
         /** Holds the vertex array object for the point cloud. */
-        GLuint vaoPointCloud_ = 0;
+        gl::GLuint vaoPointCloud_ = 0;
+
+
+        std::vector<FrameBuffer> deferredFBOs_;
+
+        /** Holds the mesh to render. */
+        std::shared_ptr<Mesh> mesh_;
+        /** Holds the mesh renderable. */
+        std::unique_ptr<enh::MeshRenderable> meshRenderable_;
+        /** The meshes model matrix. */
+        glm::mat4 meshModel_;
+        /** Holds the background environment map. */
+        std::shared_ptr<Texture> envMap_;
+
+        /** Holds the program for deferred mesh rendering. */
+        std::shared_ptr<GPUProgram> deferredProgram_;
+        /** Holds the uniform bindings for deferred mesh rendering. */
+        std::vector<gl::GLint> deferredUniformLocations_;
+
+        /** Holds the program for summation of distances. */
+        std::shared_ptr<GPUProgram> distanceSumAOProgram_;
+        /** Holds the uniform bindings for summation of distances. */
+        std::vector<gl::GLint> distanceSumAOUniformLocations_;
+
+        /** Holds the program for summation of distances. */
+        std::shared_ptr<GPUProgram> distanceSumMatteProgram_;
+        /** Holds the uniform bindings for summation of distances. */
+        std::vector<gl::GLint> distanceSumMatteUniformLocations_;
+
+        /** Holds the program for summation of distances. */
+        std::shared_ptr<GPUProgram> distanceSumSubsurfaceProgram_;
+        /** Holds the uniform bindings for summation of distances. */
+        std::vector<gl::GLint> distanceSumSubsurfaceUniformLocations_;
+
+        /** Holds the program for final rendering. */
+        std::unique_ptr<FullscreenQuad> finalQuad_;
+        /** Holds the uniform bindings for final rendering. */
+        std::vector<gl::GLint> finalUniformLocations_;
+
+        std::vector<std::size_t> deferredDrawIndices_;
+        std::vector<std::size_t> distanceSumDrawIndices_;
     };
 }
