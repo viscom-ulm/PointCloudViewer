@@ -60,11 +60,11 @@ namespace viscom {
                     if (ImGui::RadioButton("Direct Illumination", GetMatteRenderType() == 2)) SetMatteRenderType(2);
                 }
                 else if (GetPointCloudType() == PCType::SUBSURFACE) {
-                    if (ImGui::RadioButton("Global Illumination", GetMatteRenderType() == 0)) SetMatteRenderType(0);
-                    if (ImGui::RadioButton("Subsurface Albedo", GetMatteRenderType() == 1)) SetMatteRenderType(1);
-                    if (ImGui::RadioButton("Sigma_t'", GetMatteRenderType() == 2)) SetMatteRenderType(2);
-                    if (ImGui::RadioButton("Eta", GetMatteRenderType() == 3)) SetMatteRenderType(3);
-                    if (ImGui::RadioButton("Direct Illumination", GetMatteRenderType() == 4)) SetMatteRenderType(4);
+                    if (ImGui::RadioButton("Global Illumination", GetSubsurfaceRenderType() == 0)) SetSubsurfaceRenderType(0);
+                    if (ImGui::RadioButton("Subsurface Albedo", GetSubsurfaceRenderType() == 1)) SetSubsurfaceRenderType(1);
+                    if (ImGui::RadioButton("Sigma_t'", GetSubsurfaceRenderType() == 2)) SetSubsurfaceRenderType(2);
+                    if (ImGui::RadioButton("Eta", GetSubsurfaceRenderType() == 3)) SetSubsurfaceRenderType(3);
+                    if (ImGui::RadioButton("Direct Illumination", GetSubsurfaceRenderType() == 4)) SetSubsurfaceRenderType(4);
                 }
 
                 ImGui::End();
@@ -78,7 +78,9 @@ namespace viscom {
                 ImGui::Text(inputDir_.data());
                 bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
-                    if (fs::is_directory(dl)) {
+                    std::error_code ec;
+                    bool isDir = fs::is_directory(dl, ec);
+                    if (!ec && isDir) {
                         bool selected = false;
                         ImGui::Selectable(dl.c_str(), &selected);
                         if (selected) {

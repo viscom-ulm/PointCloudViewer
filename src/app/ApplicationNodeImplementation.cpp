@@ -358,7 +358,7 @@ namespace viscom {
         pcType_ = PCType::MATTE;
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
-        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcAO_.size() * sizeof(PointCloudPoint), pcAO_.data(), gl::GL_STATIC_DRAW);
+        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcMatte_.size() * sizeof(PointCloudPoint), pcMatte_.data(), gl::GL_STATIC_DRAW);
 
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glEnableVertexAttribArray(0);
@@ -385,7 +385,7 @@ namespace viscom {
         pcType_ = PCType::SUBSURFACE;
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
-        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcAO_.size() * sizeof(PointCloudPoint), pcAO_.data(), gl::GL_STATIC_DRAW);
+        gl::glBufferData(gl::GL_ARRAY_BUFFER, pcSubsurface_.size() * sizeof(PointCloudPoint), pcSubsurface_.data(), gl::GL_STATIC_DRAW);
 
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glEnableVertexAttribArray(0);
