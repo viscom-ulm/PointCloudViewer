@@ -129,20 +129,31 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (inputBatchMode_ && ImGui::Begin("Select batch folder", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
+                bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
-                    if (fs::is_directory(dl)) {
+                    std::error_code ec;
+                    bool isDir = fs::is_directory(dl, ec);
+                    if (!ec && isDir) {
                         bool selected = false;
                         ImGui::Selectable(dl.c_str(), &selected);
-                        if (selected) inputDir_ = dl;
+                        if (selected) {
+                            inputDir_ = dl;
+                            inputDirEntries_ = GetDirectoryContent(inputDir_, false);
+                            skipFiles = true;
+                        }
                     }
                 }
 
-                for (auto &path : GetDirectoryContent(inputDir_, false)) {
+                if (!skipFiles) for (auto &path : inputDirEntries_) {
                     bool selected = false;
                     ImGui::Selectable(path.data(), &selected);
                     if (selected) {
                         auto selection = fs::canonical(fs::path(inputDir_) / path).string();
-                        if (fs::is_directory(selection)) inputDir_ = selection;
+                        if (fs::is_directory(selection)) {
+                            inputDir_ = selection;
+                            inputDirEntries_ = GetDirectoryContent(inputDir_, false);
+                            break;
+                        }
                     }
                 }
 
@@ -165,7 +176,7 @@ namespace viscom {
         namespace fs = std::filesystem;
 
         std::vector<std::string> content;
-        content.emplace_back("..");
+        if (!pcFilesOnly) content.emplace_back("..");
 
         auto checkPCFile = [](const fs::path& p) { 
             if (!(p.extension().string() == ".txt" || p.extension().string() == ".TXT")) return false;
@@ -205,7 +216,7 @@ namespace viscom {
         FrameBuffer deferredFBO(800, 600, headlessDefferedFBODesc);
 
         try {
-            LoadPointCloud(singleFile_, loadModel);
+            LoadPointCloud(pointCloud, loadModel);
         }
         catch (std::invalid_argument e) {
             std::cout << e.what() << std::endl;
@@ -236,6 +247,7 @@ namespace viscom {
         namespace fs = std::filesystem;
 
         auto splitFilename = utils::split(fs::path(pointCloud).stem().string(), '_');
+        if (splitFilename[0] == "parameters") return;
         if (splitFilename[1] == "ao") LoadPointCloudAO(pointCloud);
         else if (splitFilename[1] == "matte") LoadPointCloudMatte(pointCloud);
         else if (splitFilename[1] == "subsurface") LoadPointCloudSubsurface(pointCloud);

@@ -285,7 +285,7 @@ namespace viscom {
     void ApplicationNodeImplementation::SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi)
     {
         mesh_ = std::move(mesh);
-        meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
+        if (mesh_) meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
 
         meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
         meshModel_ = glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f)) * meshModel_;
