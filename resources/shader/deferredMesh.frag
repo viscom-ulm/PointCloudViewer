@@ -4,7 +4,7 @@ uniform sampler2D diffuseTexture;
 
 in vec3 vertPosition;
 in vec3 vertNormal;
-in vec3 vertTexCoords;
+in vec2 vertTexCoords;
 
 layout(location = 0) out vec4 position;
 layout(location = 1) out vec4 normal;

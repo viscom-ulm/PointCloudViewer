@@ -27,6 +27,7 @@ namespace viscom {
     MasterNode::MasterNode(ApplicationNodeInternal* appNode) :
         ApplicationNodeImplementation{ appNode }
     {
+        inputDirEntries_ = GetDirectoryContent(inputDir_, false);
     }
 
     MasterNode::~MasterNode() = default;
@@ -65,9 +66,9 @@ namespace viscom {
                     if (ImGui::RadioButton("Eta", GetMatteRenderType() == 3)) SetMatteRenderType(3);
                     if (ImGui::RadioButton("Direct Illumination", GetMatteRenderType() == 4)) SetMatteRenderType(4);
                 }
-                
+
+                ImGui::End();
             }
-            ImGui::End();
 
             std::string selectedFile;
             ImGui::SetNextWindowPos(ImVec2(60, 60), ImGuiSetCond_FirstUseEver);
@@ -75,42 +76,56 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (!inputFileSelected_ && ImGui::Begin("Select point cloud file", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
+                bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
                     if (fs::is_directory(dl)) {
                         bool selected = false;
                         ImGui::Selectable(dl.c_str(), &selected);
-                        if (selected) inputDir_ = dl;
+                        if (selected) {
+                            inputDir_ = dl;
+                            inputDirEntries_ = GetDirectoryContent(inputDir_, false);
+                            skipFiles = true;
+                        }
                     }
                 }
 
-                std::string selectedFilename = "";
-                for (auto &path : GetDirectoryContent(inputDir_, false)) {
+                static std::string selectedFilename = "";
+                if (!skipFiles) for (const auto& path : inputDirEntries_) {
                     bool selected = false;
                     ImGui::Selectable(path.data(), &selected);
                     if (selected) {
                         auto selection = fs::canonical(fs::path(inputDir_) / path).string();
                         if (fs::is_regular_file(selection)) selectedFilename = selection;
-                        else inputDir_ = selection;
+                        else {
+                            inputDir_ = selection;
+                            inputDirEntries_ = GetDirectoryContent(inputDir_, false);
+                            break;
+                        }
                     }
                 }
 
-                if (!selectedFilename.empty()) inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
-                ImGui::SameLine();
-                static bool loadModel;
-                ImGui::Checkbox("Load Model", &loadModel);
-                if (inputFileSelected_) {
-                    try {
-                        LoadPointCloud(selectedFilename, loadModel);
-                    }
-                    catch (std::invalid_argument e) {
-                        inputFileSelected_ = false;
+                if (!selectedFilename.empty()) {
+                    inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
+                    ImGui::SameLine();
+                    static bool loadModel;
+                    ImGui::Checkbox("Load Model", &loadModel);
+                    if (inputFileSelected_) {
+                        try {
+                            LoadPointCloud(selectedFilename, loadModel);
+                        }
+                        catch (std::invalid_argument e) {
+                            inputFileSelected_ = false;
+                        }
                     }
                 }
 
                 ImGui::End();
             }
 
-            if (inputBatchMode_ && ImGui::Begin("Select point cloud file", nullptr, ImGuiWindowFlags_MenuBar)) {
+            ImGui::SetNextWindowPos(ImVec2(60, 60), ImGuiSetCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+            ImGui::StyleColorsClassic();
+            if (inputBatchMode_ && ImGui::Begin("Select batch folder", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
                 for (const auto& dl : supportedDriveLetters) {
                     if (fs::is_directory(dl)) {
@@ -231,7 +246,7 @@ namespace viscom {
             std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
 
             std::string line;
-            std::size_t lineCounter = static_cast<std::size_t>(std::atoi(splitFilename[5].c_str()));
+            std::size_t lineCounter = static_cast<std::size_t>(std::atoi(splitFilename[splitFilename.size() - 1].c_str())) + 2;
             float meshTheta, meshPhi;
 
             if (splitFilename[1] == "matte") lineCounter -= 20000;
@@ -242,14 +257,16 @@ namespace viscom {
                 if (--lineCounter != 0) continue;
 
                 auto splitParameters = utils::split(line, ',');
-                assert(splitParameters[0] == splitFilename[5]);
+                assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
                 break;
             }
 
             auto envMapFilename = inputDir_ + "/" + splitFilename[2];
-            auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[3] + "/" + splitFilename[4] + "/models/model_normalized.obj";
+            for (std::size_t i = 3; i < splitFilename.size() - 3; ++i) envMapFilename += "_" + splitFilename[i];
+            envMapFilename += ".hdr";
+            auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
             SetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
             SetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
 

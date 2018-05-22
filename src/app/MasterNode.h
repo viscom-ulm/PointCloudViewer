@@ -39,6 +39,7 @@ namespace viscom {
 
         /* Holds the input directory. */
         std::string inputDir_;
+        std::vector<std::string> inputDirEntries_;
         /** Holds the selected file type. */
         // PCType pcType_;
         // /** The point clouds. */

@@ -10,13 +10,13 @@ uniform mat3 normalMatrix;
 
 out vec3 vertPosition;
 out vec3 vertNormal;
-out vec3 vertTexCoords;
+out vec2 vertTexCoords;
 
 void main()
 {
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vertPosition = position.xyz;
     vertNormal = normalize(normalMatrix * normal);
-    vertTexCoords = texCoords
+    vertTexCoords = texCoords;
     gl_Position =  viewProjection * worldPosition;
 }

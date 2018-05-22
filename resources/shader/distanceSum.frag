@@ -20,7 +20,7 @@ void main()
     if (dot(n4.xyz, vertNormal) < 0.0) return;
 
     vec3 normal = normalize(n4.xyz);
-    vec3 position = texture(positionTexture, texCoords);
+    vec3 position = texture(positionTexture, texCoords).xyz;
 
     float weight = 1.0 / pow(distance(position, vertPosition), distancePower);
     directIllumination = vec4(weight * vertDirectIllumination, weight);
