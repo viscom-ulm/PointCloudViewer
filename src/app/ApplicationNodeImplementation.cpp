@@ -26,6 +26,8 @@
 #include "enh/gfx/env/EnvironmentMapRenderer.h"
 #include "app/gfx/mesh/MeshRenderable.h"
 #include "app/Vertices.h"
+// #include <Python.h>
+// #include <numpy/arrayobject.h>
 
 namespace viscom {
 
@@ -214,6 +216,13 @@ namespace viscom {
         gl::glUseProgram(0);
 
         gl::glCullFace(gl::GL_BACK);
+
+        // Py_Initialize();
+        // std::array<int, 2> dims = { 1000, 4 };
+        // std::vector<float> test;
+        //auto pyArray = PyArray_SimpleNewFromData(2, dims.data(), NPY_FLOAT, test.data());
+
+        // Py
     }
 
     void ApplicationNodeImplementation::DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO)
