@@ -207,13 +207,13 @@ namespace viscom {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } },{} };
 
-        FrameBuffer fbo(800, 600, headlessFBODesc);
+        FrameBuffer fbo(512, 512, headlessFBODesc);
 
         FrameBufferDescriptor headlessDefferedFBODesc{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } },{} };
 
-        FrameBuffer deferredFBO(800, 600, headlessDefferedFBODesc);
+        FrameBuffer deferredFBO(fbo.GetWidth(), fbo.GetHeight(), headlessDefferedFBODesc);
 
         try {
             LoadPointCloud(pointCloud, loadModel);
@@ -232,11 +232,11 @@ namespace viscom {
             gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
         });
 
-        DrawPointCloud(fbo, deferredFBO);
+        DrawPointCloud(fbo, deferredFBO, true);
 
         auto out_filename = pointCloud.substr(0, pointCloud.size() - 3) + "png";
         enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
-        enh::GLTexture::SaveTextureToFile(fbo.GetTextures()[0], texDesc, glm::uvec3(800, 600, 1), out_filename);
+        enh::GLTexture::SaveTextureToFile(fbo.GetTextures()[0], texDesc, glm::uvec3(fbo.GetWidth(), fbo.GetHeight(), 1), out_filename);
 
         SetMesh(nullptr, 0.0f, 0.0f);
         SetEnvironmentMap(nullptr);
@@ -285,12 +285,17 @@ namespace viscom {
             SetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
 
         }
+        else {
+            SetMesh(nullptr, 0.0f, 0.0f);
+            SetEnvironmentMap(nullptr);
+        }
     }
 
     void MasterNode::LoadPointCloudAO(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointAO> pointCloudData;
+        ClearRadius();
 
         std::string line;
         while (pc_in.good()) {
@@ -303,6 +308,7 @@ namespace viscom {
             pointCloudData.back().position_.x = static_cast<float>(std::atof(splitPointData[0].c_str()));
             pointCloudData.back().position_.y = static_cast<float>(std::atof(splitPointData[1].c_str()));
             pointCloudData.back().position_.z = static_cast<float>(std::atof(splitPointData[2].c_str()));
+            AddToBoundingSphere(pointCloudData.back().position_);
 
             pointCloudData.back().normal_.x = static_cast<float>(std::atof(splitPointData[3].c_str()));
             pointCloudData.back().normal_.y = static_cast<float>(std::atof(splitPointData[4].c_str()));
@@ -318,6 +324,7 @@ namespace viscom {
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointMatte> pointCloudData;
+        ClearRadius();
 
         std::string line;
         while (pc_in.good()) {
@@ -330,6 +337,7 @@ namespace viscom {
             pointCloudData.back().position_.x = static_cast<float>(std::atof(splitPointData[0].c_str()));
             pointCloudData.back().position_.y = static_cast<float>(std::atof(splitPointData[1].c_str()));
             pointCloudData.back().position_.z = static_cast<float>(std::atof(splitPointData[2].c_str()));
+            AddToBoundingSphere(pointCloudData.back().position_);
 
             pointCloudData.back().normal_.x = static_cast<float>(std::atof(splitPointData[3].c_str()));
             pointCloudData.back().normal_.y = static_cast<float>(std::atof(splitPointData[4].c_str()));
@@ -355,6 +363,7 @@ namespace viscom {
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointSubsurface> pointCloudData;
+        ClearRadius();
 
         std::string line;
         while (pc_in.good()) {
@@ -367,6 +376,7 @@ namespace viscom {
             pointCloudData.back().position_.x = static_cast<float>(std::atof(splitPointData[0].c_str()));
             pointCloudData.back().position_.y = static_cast<float>(std::atof(splitPointData[1].c_str()));
             pointCloudData.back().position_.z = static_cast<float>(std::atof(splitPointData[2].c_str()));
+            AddToBoundingSphere(pointCloudData.back().position_);
 
             pointCloudData.back().normal_.x = static_cast<float>(std::atof(splitPointData[3].c_str()));
             pointCloudData.back().normal_.y = static_cast<float>(std::atof(splitPointData[4].c_str()));

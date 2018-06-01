@@ -43,14 +43,17 @@ namespace viscom {
 
         aoProgram_ = GetGPUProgramManager().GetResource("ao", std::vector<std::string>{ "showAO.vert", "showPCResult.frag" });
         aoMVPLoc_ = aoProgram_->getUniformLocation("MVP");
+        aoBBRLoc_ = aoProgram_->getUniformLocation("bbRadius");
 
         matteProgram_ = GetGPUProgramManager().GetResource("matte", std::vector<std::string>{ "showMatte.vert", "showPCResult.frag" });
         matteMVPLoc_ = matteProgram_->getUniformLocation("MVP");
         matteRenderTypeLoc_ = matteProgram_->getUniformLocation("renderType");
+        matteBBRLoc_ = matteProgram_->getUniformLocation("bbRadius");
 
         subsurfaceProgram_ = GetGPUProgramManager().GetResource("subsurface", std::vector<std::string>{ "showSubsurface.vert", "showPCResult.frag" });
         subsurfaceMVPLoc_ = subsurfaceProgram_->getUniformLocation("MVP");
         subsurfaceRenderTypeLoc_ = subsurfaceProgram_->getUniformLocation("renderType");
+        subsurfaceBBRLoc_ = subsurfaceProgram_->getUniformLocation("bbRadius");
 
 
         deferredProgram_ = GetGPUProgramManager().GetResource("deferredMesh", std::vector<std::string>{ "deferredMesh.vert", "deferredMesh.frag" });
@@ -113,7 +116,7 @@ namespace viscom {
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
         auto deferredFBO = SelectOffscreenBuffer(deferredFBOs_);
-        DrawPointCloud(fbo, *deferredFBO);
+        DrawPointCloud(fbo, *deferredFBO, false);
         // sceneFBO->DrawToFBO([this]() {
         // });
 
@@ -124,7 +127,7 @@ namespace viscom {
         // fbo.DrawToFBO([this]() {});
     }
 
-    void ApplicationNodeImplementation::DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO)
+    void ApplicationNodeImplementation::DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
         if (envMap_) {
             fbo.DrawToFBO([this]() {
@@ -133,8 +136,8 @@ namespace viscom {
         }
 
         if (!mesh_) {
-            fbo.DrawToFBO([this]() {
-                DrawPointCloudPoints();
+            fbo.DrawToFBO([this, batched]() {
+                DrawPointCloudPoints(batched);
             });
         }
         else {
@@ -152,17 +155,21 @@ namespace viscom {
         }
     }
 
-    void ApplicationNodeImplementation::DrawPointCloudPoints()
+    void ApplicationNodeImplementation::DrawPointCloudPoints(bool batched)
     {
         gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);
+        gl::glEnable(gl::GL_BLEND);
+        gl::glBlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
 
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
 
-        auto MVP = GetCamera()->GetViewPerspectiveMatrix();
+        glm::mat4 modelMatrix(0.8f);
+        auto MVP = GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
         if (pcType_ == PCType::AO) {
             gl::glUseProgram(aoProgram_->getProgramId());
             gl::glUniformMatrix4fv(aoMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
+            gl::glUniform1f(aoBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
         }
 
@@ -170,6 +177,7 @@ namespace viscom {
             gl::glUseProgram(matteProgram_->getProgramId());
             gl::glUniformMatrix4fv(matteMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1i(matteRenderTypeLoc_, matteRenderType_);
+            gl::glUniform1f(matteBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
         }
 
@@ -177,6 +185,7 @@ namespace viscom {
             gl::glUseProgram(subsurfaceProgram_->getProgramId());
             gl::glUniformMatrix4fv(subsurfaceMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1i(subsurfaceRenderTypeLoc_, subsurfaceRenderType_);
+            gl::glUniform1f(subsurfaceBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
         }
 
@@ -184,6 +193,8 @@ namespace viscom {
         gl::glBindVertexArray(0);
         gl::glUseProgram(0);
 
+
+        gl::glDisable(gl::GL_BLEND);
         gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
     }
 
@@ -191,13 +202,18 @@ namespace viscom {
     {
         auto VP = GetCamera()->GetViewPerspectiveMatrix();
 
+        gl::glCullFace(gl::GL_FRONT);
+        glm::mat4 modelMatrix(10.f);
+        modelMatrix[3][3] = 1.f;
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
-        meshRenderable_->Draw(meshModel_);
+        meshRenderable_->Draw(meshModel_ * modelMatrix);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);
         gl::glUseProgram(0);
+
+        gl::glCullFace(gl::GL_BACK);
     }
 
     void ApplicationNodeImplementation::DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO)
@@ -207,6 +223,8 @@ namespace viscom {
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
 
+        gl::glDisable(gl::GL_DEPTH_TEST);
+        gl::glDepthMask(gl::GL_FALSE);
         gl::glEnable(gl::GL_BLEND);
         gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
         gl::glBlendFuncSeparate(gl::GL_ONE, gl::GL_ONE, gl::GL_ONE, gl::GL_ONE);
@@ -258,6 +276,8 @@ namespace viscom {
         }
 
         gl::glDisable(gl::GL_BLEND);
+        gl::glDepthMask(gl::GL_TRUE);
+        gl::glEnable(gl::GL_DEPTH_TEST);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);
@@ -288,7 +308,7 @@ namespace viscom {
         if (mesh_) meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
 
         meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
-        meshModel_ = glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f)) * meshModel_;
+        meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     void ApplicationNodeImplementation::CleanUp()
@@ -297,6 +317,8 @@ namespace viscom {
         vaoPointCloud_ = 0;
         if (vboPointCloud_ != 0) gl::glDeleteBuffers(1, &vboPointCloud_);
         vboPointCloud_ = 0;
+
+        meshRenderable_ = nullptr;
 
         // dof_ = nullptr;
         // tm_ = nullptr;
@@ -346,6 +368,8 @@ namespace viscom {
         gl::glVertexAttribPointer(2, 1, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, ao_)));
         gl::glBindVertexArray(0);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+
+        camera_.SetCameraPosition(boundingSphereRadius_ * GetCamera()->GetCentralPerspectiveMatrix()[1][1] * glm::normalize(camera_.GetPosition()));
     }
 
     void ApplicationNodeImplementation::LoadPointCloudGPUMatte(std::vector<PointCloudPointMatte>& pointCloud)
@@ -373,6 +397,8 @@ namespace viscom {
         gl::glVertexAttribPointer(4, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, globalIllumination_)));
         gl::glBindVertexArray(0);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+
+        camera_.SetCameraPosition(boundingSphereRadius_ * GetCamera()->GetCentralPerspectiveMatrix()[1][1] * glm::normalize(camera_.GetPosition()));
     }
 
     void ApplicationNodeImplementation::LoadPointCloudGPUSubsurface(std::vector<PointCloudPointSubsurface>& pointCloud)
@@ -404,6 +430,8 @@ namespace viscom {
         gl::glVertexAttribPointer(6, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(PointCloudPoint), reinterpret_cast<GLvoid*>(offsetof(PointCloudPoint, globalIllumination_)));
         gl::glBindVertexArray(0);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
+
+        camera_.SetCameraPosition(boundingSphereRadius_ * GetCamera()->GetCentralPerspectiveMatrix()[1][1] * glm::normalize(camera_.GetPosition()));
     }
 
 }

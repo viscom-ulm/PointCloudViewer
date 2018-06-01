@@ -1,5 +1,5 @@
 /**
- * @file   ArcballCamera.h
+ * @file   ArcballCameraEnhanced.h
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2017.06.07
  *
@@ -13,23 +13,22 @@
 #include "core/camera/CameraBase.h"
 #include <glm/gtc/quaternion.hpp>
 
-namespace viscom {
+namespace viscom::enh {
 
     /**
     * Represents a camera rotating around the origin.
     */
-    class ArcballCamera final : public CameraBase
+    class ArcballCameraEnhanced final : public viscom::CameraBase
     {
     public:
-        ArcballCamera(const glm::vec3& camPos, viscom::CameraHelper& cameraHelper) noexcept;
-        virtual ~ArcballCamera() override;
+        ArcballCameraEnhanced(const glm::vec3& camPos, viscom::CameraHelper& cameraHelper) noexcept;
+        virtual ~ArcballCameraEnhanced() override;
 
-        virtual bool HandleMouse(int button, int action, float mouseWheelDelta, const ApplicationNodeBase* sender) override;
-        virtual void UpdateCamera(double elapsedTime, const ApplicationNodeBase* sender) override;
+        virtual bool HandleMouse(int button, int action, float mouseWheelDelta, const viscom::ApplicationNodeBase* sender) override;
+        virtual void UpdateCamera(double elapsedTime, const viscom::ApplicationNodeBase* sender) override;
 
         virtual glm::vec3 GetPosition() const noexcept override;
 
-    public:
         virtual void SetCameraPosition(const glm::vec3& position) override;
 
     private:

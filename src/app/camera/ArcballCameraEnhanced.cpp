@@ -1,12 +1,12 @@
 /**
- * @file   ArcballCamera.cpp
+ * @file   ArcballCameraEnhanced.cpp
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2017.06.07
  *
  * @brief  Implementation of an arcball camera.
  */
 
-#include "ArcballCamera.h"
+#include "ArcballCameraEnhanced.h"
 
 #define GLM_SWIZZLE
 #include "core/glfw.h"
@@ -16,14 +16,14 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 
-namespace viscom {
+namespace viscom::enh {
 
     /**
      *  Constructor.
      *  @param theCamPos the cameras initial position.
      *  @param cameraHelper the camera helper class.
      */
-    ArcballCamera::ArcballCamera(const glm::vec3& theCamPos, viscom::CameraHelper& cameraHelper) noexcept :
+    ArcballCameraEnhanced::ArcballCameraEnhanced(const glm::vec3& theCamPos, viscom::CameraHelper& cameraHelper) noexcept :
         CameraBase(theCamPos, cameraHelper),
         baseCamPos_{ glm::normalize(theCamPos) },
         mouseWheelDelta_{ 0.0f },
@@ -31,12 +31,12 @@ namespace viscom {
     {
     }
 
-    ArcballCamera::~ArcballCamera() = default;
+    ArcballCameraEnhanced::~ArcballCameraEnhanced() = default;
 
     /**
      *  Updates the camera parameters using the internal arc-ball.
      */
-    void ArcballCamera::UpdateCamera(double elapsedTime, const ApplicationNodeBase*)
+    void ArcballCameraEnhanced::UpdateCamera(double elapsedTime, const ApplicationNodeBase*)
     {
         const double mouseWheelSpeed = 8.0;
 
@@ -61,7 +61,7 @@ namespace viscom {
      *  @param action the mouse buttons action.
      *  @param sender the application to supply normalized screen coordinates.
      */
-    bool ArcballCamera::HandleMouse(int button, int action, float mouseWheelDelta, const ApplicationNodeBase* sender)
+    bool ArcballCameraEnhanced::HandleMouse(int button, int action, float mouseWheelDelta, const ApplicationNodeBase* sender)
     {
         bool handled = camArcball_.HandleMouse(button, action, sender);
 
@@ -73,12 +73,12 @@ namespace viscom {
         return handled;
     }
 
-    void ArcballCamera::SetCameraPosition(const glm::vec3 & position)
+    void ArcballCameraEnhanced::SetCameraPosition(const glm::vec3 & position)
     {
         CameraBase::SetCameraPosition(position - GetUserPosition());
     }
 
-    glm::vec3 ArcballCamera::GetPosition() const noexcept
+    glm::vec3 ArcballCameraEnhanced::GetPosition() const noexcept
     {
         return CameraBase::GetPosition() + GetUserPosition();
     }

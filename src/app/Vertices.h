@@ -54,7 +54,8 @@ namespace viscom {
             for (std::size_t i = 0; i < mesh->GetVertices().size(); ++i) {
                 bufferMem[i].position_ = mesh->GetVertices()[i];
                 bufferMem[i].normal_ = mesh->GetNormals()[i];
-                bufferMem[i].texCoords_ = glm::vec2(mesh->GetTexCoords(0)[i]);
+                if (mesh->GetNumTexCoords() == 0) bufferMem[i].texCoords_ = glm::vec2(0.0f);
+                else bufferMem[i].texCoords_ = glm::vec2(mesh->GetTexCoords(0)[i]);
             }
             gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vbo);
             gl::glBufferData(gl::GL_ARRAY_BUFFER, bufferMem.size() * sizeof(SimpleMeshVertex), bufferMem.data(), gl::GL_STATIC_DRAW);

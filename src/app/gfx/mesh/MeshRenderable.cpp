@@ -26,7 +26,6 @@ namespace viscom::enh {
     MeshRenderable::MeshRenderable(const Mesh* renderMesh, GLuint vBuffer, GPUProgram* program) :
         mesh_(renderMesh),
         vbo_(vBuffer),
-        vao_(0),
         drawProgram_(program)
     {
     }

@@ -9,7 +9,7 @@
 #pragma once
 
 #include "enh/ApplicationNodeBase.h"
-#include "core/camera/ArcballCamera.h"
+#include "camera/ArcballCameraEnhanced.h"
 
 namespace viscom::enh {
     class DepthOfField;
@@ -77,7 +77,7 @@ namespace viscom {
         void LoadPointCloudGPUMatte(std::vector<PointCloudPointMatte>& pointCloud);
         void LoadPointCloudGPUSubsurface(std::vector<PointCloudPointSubsurface>& pointCloud);
 
-        void DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO);
+        void DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched);
 
         PCType GetPointCloudType() const { return pcType_; }
         int GetMatteRenderType() const { return matteRenderType_; }
@@ -88,17 +88,21 @@ namespace viscom {
         void SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi);
         void SetEnvironmentMap(std::shared_ptr<Texture> envMap) { envMap_ = std::move(envMap); }
 
+        void ClearRadius() { boundingSphereRadius_ = 0.0f; }
+        void AddToBoundingSphere(const glm::vec3& v) { boundingSphereRadius_ = glm::max(boundingSphereRadius_, glm::length(v)); }
+
         // enh::DepthOfField* GetDOF() { return dof_.get(); }
         // enh::FilmicTMOperator* GetToneMapping() { return tm_.get(); }
         // enh::BloomEffect* GetBloom() { return bloom_.get(); }
 
     private:
-        void DrawPointCloudPoints();
+        void DrawPointCloudPoints(bool batched);
         void DrawMeshDeferred();
         void DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO);
         void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
 
-        ArcballCamera camera_;
+        float boundingSphereRadius_ = 0.0f;
+        enh::ArcballCameraEnhanced camera_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
 
@@ -120,6 +124,7 @@ namespace viscom {
         std::shared_ptr<GPUProgram> aoProgram_;
         /** Holds the location of the MVP matrix. */
         gl::GLint aoMVPLoc_ = -1;
+        gl::GLint aoBBRLoc_ = -1;
 
         /** Holds the shader program for drawing matte results. */
         std::shared_ptr<GPUProgram> matteProgram_;
@@ -127,6 +132,7 @@ namespace viscom {
         gl::GLint matteMVPLoc_ = -1;
         /** Holds the location of render type. */
         gl::GLint matteRenderTypeLoc_ = -1;
+        gl::GLint matteBBRLoc_ = -1;
 
         /** Holds the shader program for drawing subsurface results. */
         std::shared_ptr<GPUProgram> subsurfaceProgram_;
@@ -134,6 +140,7 @@ namespace viscom {
         gl::GLint subsurfaceMVPLoc_ = -1;
         /** Holds the location of render type. */
         gl::GLint subsurfaceRenderTypeLoc_ = -1;
+        gl::GLint subsurfaceBBRLoc_ = -1;
 
         /** Holds the vertex buffer for the point could. */
         gl::GLuint vboPointCloud_ = 0;
