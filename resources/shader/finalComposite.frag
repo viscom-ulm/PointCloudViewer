@@ -23,6 +23,7 @@ void main()
 
     vec3 materialColor = texture(materialColorTexture, texCoord).rgb;
 
-    vec3 L = materialColor * directIllumination + globalIllumination;
+    // vec3 L = materialColor * directIllumination + globalIllumination;
+    vec3 L = globalIllumination;
     color = vec4(L, 1.0);
 }

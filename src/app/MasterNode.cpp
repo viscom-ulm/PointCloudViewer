@@ -51,6 +51,7 @@ namespace viscom {
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
             ImGui::StyleColorsClassic();
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
+                ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
                 // GetDOF()->RenderParameterSliders();
                 // GetToneMapping()->RenderParameterSliders();
                 // GetBloom()->RenderParameterSliders();
@@ -258,8 +259,9 @@ namespace viscom {
 
         if (loadModel) {
             std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
-
             std::string line;
+            std::getline(params_in, line); // description line...
+
             std::size_t lineCounter = static_cast<std::size_t>(std::atoi(splitFilename[splitFilename.size() - 1].c_str())) + 2;
             float meshTheta, meshPhi;
 
@@ -268,10 +270,11 @@ namespace viscom {
 
             while (params_in.good()) {
                 std::getline(params_in, line);
-                if (--lineCounter != 0) continue;
-
                 auto splitParameters = utils::split(line, ',');
-                assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
+                if (splitParameters[0] != splitFilename[splitFilename.size() - 1]) continue;
+                // if (--lineCounter != 0) continue;
+
+                // assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
                 break;
@@ -282,7 +285,8 @@ namespace viscom {
             envMapFilename += ".hdr";
             auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
             SetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
-            SetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
+            SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
+            //SetMesh(GetMeshManager().GetResource("D:/Users/Sebastian Maisch/Documents/dev/deeplearning/ModelNet10/chair/train/chair_0009.off"), 0.0f, 0.0f);
 
         }
         else {

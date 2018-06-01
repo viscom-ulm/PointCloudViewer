@@ -15,7 +15,7 @@ out vec3 vertDirectIllumination;
 void main()
 {
     gl_Position =  viewProjection * vec4(position, 1.0);
-    gl_PointSize = bbRadius * 50.0f / gl_Position.w;
+    gl_PointSize = bbRadius * 150.0f / gl_Position.w;
 
     vertPosition = position;
     vertNormal = normal;

@@ -142,8 +142,14 @@ namespace viscom {
         }
         else {
             deferredFBO.DrawToFBO(deferredDrawIndices_, [this]() {
+            // fbo.DrawToFBO([this]() {
                 DrawMeshDeferred();
             });
+
+
+            // fbo.DrawToFBO([this, batched]() {
+            //     DrawPointCloudPoints(batched);
+            // });
 
             deferredFBO.DrawToFBO(distanceSumDrawIndices_, [this, &deferredFBO]() {
                 DrawPointCloudDistanceSum(deferredFBO);
@@ -170,6 +176,7 @@ namespace viscom {
             gl::glUseProgram(aoProgram_->getProgramId());
             gl::glUniformMatrix4fv(aoMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1f(aoBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
+            gl::glUniform3fv(aoProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
         }
 
@@ -178,6 +185,7 @@ namespace viscom {
             gl::glUniformMatrix4fv(matteMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1i(matteRenderTypeLoc_, matteRenderType_);
             gl::glUniform1f(matteBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
+            gl::glUniform3fv(matteProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
         }
 
@@ -186,6 +194,7 @@ namespace viscom {
             gl::glUniformMatrix4fv(subsurfaceMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1i(subsurfaceRenderTypeLoc_, subsurfaceRenderType_);
             gl::glUniform1f(subsurfaceBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
+            gl::glUniform3fv(subsurfaceProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
         }
 
@@ -202,18 +211,19 @@ namespace viscom {
     {
         auto VP = GetCamera()->GetViewPerspectiveMatrix();
 
-        gl::glCullFace(gl::GL_FRONT);
+        gl::glDisable(gl::GL_CULL_FACE);
         glm::mat4 modelMatrix(10.f);
         modelMatrix[3][3] = 1.f;
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
+        gl::glUniform3fv(deferredProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
         meshRenderable_->Draw(meshModel_ * modelMatrix);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);
         gl::glUseProgram(0);
 
-        gl::glCullFace(gl::GL_BACK);
+        gl::glEnable(gl::GL_CULL_FACE);
     }
 
     void ApplicationNodeImplementation::DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO)
@@ -223,7 +233,7 @@ namespace viscom {
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
 
-        gl::glDisable(gl::GL_DEPTH_TEST);
+        // gl::glDisable(gl::GL_DEPTH_TEST);
         gl::glDepthMask(gl::GL_FALSE);
         gl::glEnable(gl::GL_BLEND);
         gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
@@ -241,7 +251,8 @@ namespace viscom {
             gl::glActiveTexture(gl::GL_TEXTURE3);
             gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
             gl::glUniform1i(distanceSumAOUniformLocations_[2], 3);
-            gl::glUniform1f(distanceSumAOUniformLocations_[3], 1.0f);
+            gl::glUniform1f(distanceSumAOUniformLocations_[3], distancePower_);
+            gl::glUniform3fv(distanceSumAOProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
         }
 
@@ -256,7 +267,8 @@ namespace viscom {
             gl::glActiveTexture(gl::GL_TEXTURE3);
             gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
             gl::glUniform1i(distanceSumMatteUniformLocations_[2], 3);
-            gl::glUniform1f(distanceSumMatteUniformLocations_[3], 1.0f);
+            gl::glUniform1f(distanceSumMatteUniformLocations_[3], distancePower_);
+            gl::glUniform3fv(distanceSumMatteProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
         }
 
@@ -271,13 +283,14 @@ namespace viscom {
             gl::glActiveTexture(gl::GL_TEXTURE3);
             gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
             gl::glUniform1i(distanceSumSubsurfaceUniformLocations_[2], 3);
-            gl::glUniform1f(distanceSumSubsurfaceUniformLocations_[3], 1.0f);
+            gl::glUniform1f(distanceSumSubsurfaceUniformLocations_[3], distancePower_);
+            gl::glUniform3fv(distanceSumSubsurfaceProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
         }
 
         gl::glDisable(gl::GL_BLEND);
         gl::glDepthMask(gl::GL_TRUE);
-        gl::glEnable(gl::GL_DEPTH_TEST);
+        // gl::glEnable(gl::GL_DEPTH_TEST);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);

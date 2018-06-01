@@ -90,6 +90,7 @@ namespace viscom {
 
         void ClearRadius() { boundingSphereRadius_ = 0.0f; }
         void AddToBoundingSphere(const glm::vec3& v) { boundingSphereRadius_ = glm::max(boundingSphereRadius_, glm::length(v)); }
+        float& GetDistancePower() { return distancePower_; }
 
         // enh::DepthOfField* GetDOF() { return dof_.get(); }
         // enh::FilmicTMOperator* GetToneMapping() { return tm_.get(); }
@@ -102,6 +103,7 @@ namespace viscom {
         void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
 
         float boundingSphereRadius_ = 0.0f;
+        float distancePower_ = 1.0f;
         enh::ArcballCameraEnhanced camera_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
