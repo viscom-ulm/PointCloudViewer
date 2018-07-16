@@ -2,7 +2,7 @@
     "rdocCaptureSettings": 1,
     "settings": {
         "autoStart": false,
-        "commandLine": "",
+        "commandLine": "${VISCOM_CMD_LINE}",
         "environment": [
         ],
         "executable": "${CMAKE_BINARY_DIR}/${CONFIG_TYPE}/${VISCOM_APP_NAME}.exe",

@@ -19,7 +19,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Vertices.h"
-#include "core/imgui/imgui_impl_glfw_gl3.h"
 #include "enh/gfx/postprocessing/DepthOfField.h"
 #include "enh/gfx/postprocessing/BloomEffect.h"
 #include "enh/gfx/postprocessing/FilmicTMOperator.h"
