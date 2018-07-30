@@ -1,12 +1,12 @@
 /**
- * @file   MasterNode.cpp
+ * @file   CoordinatorNode.cpp
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2016.11.25
  *
- * @brief  Implementation of the master application node.
+ * @brief  Implementation of the coordinator application node.
  */
 
-#include "MasterNode.h"
+#include "CoordinatorNode.h"
 #include <imgui.h>
 #include "enh/gfx/postprocessing/DepthOfField.h"
 #include "enh/gfx/postprocessing/BloomEffect.h"
@@ -22,17 +22,17 @@
 
 namespace viscom {
 
-    std::string MasterNode::singleFile_ = "";
+    std::string CoordinatorNode::singleFile_ = "";
 
-    MasterNode::MasterNode(ApplicationNodeInternal* appNode) :
+    CoordinatorNode::CoordinatorNode(ApplicationNodeInternal* appNode) :
         ApplicationNodeImplementation{ appNode }
     {
         inputDirEntries_ = GetDirectoryContent(inputDir_, false);
     }
 
-    MasterNode::~MasterNode() = default;
+    CoordinatorNode::~CoordinatorNode() = default;
 
-    void MasterNode::InitOpenGL()
+    void CoordinatorNode::InitOpenGL()
     {
         ApplicationNodeImplementation::InitOpenGL();
 
@@ -42,7 +42,7 @@ namespace viscom {
         }
     }
 
-    void MasterNode::Draw2D(FrameBuffer& fbo)
+    void CoordinatorNode::Draw2D(FrameBuffer& fbo)
     {
         std::vector<std::string> supportedDriveLetters = { "A:/", "B:/", "C:/", "D:/", "E:/", "F:/", "G:/", "H:/" };
         namespace fs = std::filesystem;
@@ -172,7 +172,7 @@ namespace viscom {
     }
 
 
-    std::vector<std::string> MasterNode::GetDirectoryContent(const std::string& dir, bool pcFilesOnly) const
+    std::vector<std::string> CoordinatorNode::GetDirectoryContent(const std::string& dir, bool pcFilesOnly) const
     {
         namespace fs = std::filesystem;
 
@@ -193,7 +193,7 @@ namespace viscom {
         return content;
     }
 
-    void MasterNode::RenderFolderHeadless(const std::string& folder, bool loadModel)
+    void CoordinatorNode::RenderFolderHeadless(const std::string& folder, bool loadModel)
     {
         auto folderContent = GetDirectoryContent(folder, true);
 
@@ -202,7 +202,7 @@ namespace viscom {
         inputBatchMode_ = false;
     }
 
-    void MasterNode::RenderFileHeadless(const std::string& pointCloud, bool loadModel)
+    void CoordinatorNode::RenderFileHeadless(const std::string& pointCloud, bool loadModel)
     {
         FrameBufferDescriptor headlessFBODesc{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
@@ -243,7 +243,7 @@ namespace viscom {
         SetEnvironmentMap(nullptr);
     }
 
-    void MasterNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
+    void CoordinatorNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
     {
         namespace fs = std::filesystem;
 
@@ -295,7 +295,7 @@ namespace viscom {
         }
     }
 
-    void MasterNode::LoadPointCloudAO(const std::string& pointCloud)
+    void CoordinatorNode::LoadPointCloudAO(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointAO> pointCloudData;
@@ -324,7 +324,7 @@ namespace viscom {
         LoadPointCloudGPUAO(pointCloudData);
     }
 
-    void MasterNode::LoadPointCloudMatte(const std::string& pointCloud)
+    void CoordinatorNode::LoadPointCloudMatte(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointMatte> pointCloudData;
@@ -363,7 +363,7 @@ namespace viscom {
         LoadPointCloudGPUMatte(pointCloudData);
     }
 
-    void MasterNode::LoadPointCloudSubsurface(const std::string& pointCloud)
+    void CoordinatorNode::LoadPointCloudSubsurface(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointSubsurface> pointCloudData;
@@ -408,7 +408,7 @@ namespace viscom {
         LoadPointCloudGPUSubsurface(pointCloudData);
     }
 
-    bool MasterNode::KeyboardCallback(int key, int scancode, int action, int mods)
+    bool CoordinatorNode::KeyboardCallback(int key, int scancode, int action, int mods)
     {
         if (ApplicationNodeBase::KeyboardCallback(key, scancode, action, mods)) return true;
 

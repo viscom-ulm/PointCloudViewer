@@ -8,5 +8,5 @@ data/*/*.dat
 .vs/
 resources/shader/**/*.gen
 resources/**/*.viscombin
-
+doc/html/
 !resources/**/*.obj

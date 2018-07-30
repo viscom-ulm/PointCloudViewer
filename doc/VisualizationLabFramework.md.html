@@ -1,0 +1,442 @@
+<meta charset="utf-8" lang="en"><style class="fallback">body{visibility:hidden;}</style>
+
+     **HOW TO Visualization Lab Framework**
+       Sebastian Maisch
+
+Preface
+=======
+
+This framework aims to provide an entry point for developing graphical application that will run on the graphics cluster that drives the projection wall in the 'Visualization Lab' at Ulm University.
+The lab currently consists of an array of 3x4 Full HD projectors for each eye and can be run in stereo mode (totaling up the number of projectors to 24).
+The projectors are driven by currently six PCs with two graphics cards each (we will call these PCs **workers**).
+To complete the setup there is one PC that will coordinate the application (called **coordinator** from now on) and is responsible for synchronization.
+
+Despite the direct input at the coordinator the screen of the projection wall has an integrated touch frame.
+In the near future we will also support tracked Steam VR controllers for input.
+
+In this document we want to describe how to use this framework for developing applications.
+This is ment to be a more or less complete documentation but you will probably not need most of the stuff described here when using the framework at home.
+Currently this framework can be used in several different configurations which determine the need for external libraries.
+
+The different options are:
+Touch support
+:   Determines if touch support (implemented by TUIO) is included.
+Stand alone mode
+:   The most simple version of this application. This will run the application as a desktop only application but does not rely on external libraries.
+Network mode
+:   This enables the framework to run on multiple PCs. Alternatively you can also run multiple instances on a single PC for testing purposes. This mode requires SGCT as an external library.
+Calibrated Network mode
+:   This mode is the one that is used to run the application on the projection wall. It has all features of *Network mode* and additionally uses calibration information to correctly place the output and do color calibration.
+
+Additional to this document there is the [doxygen documentation](./html/index.html) (if you generated it).
+
+Building the Framework
+======================
+
+The framework relies on [CMake](https://cmake.org/) as a build system (version 3.9 is required).
+The build is regularly tested with Visual Studio (we currently use version 15.7) but should also run with Clang or GCC for Linux and MacOS (if this is not the case feel free to do a bug report).
+
+Dependencies
+------------
+
+We try to keep this software self contained.
+This means we will try to have all of the dependencies needed directly included.
+We achieve this by using [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+So if you are cloning this as a git repository make sure to initialize submodules recursively with
+~~~ console
+git submodule update --init --recursive
+~~~
+
+For **Network mode** and **Calibrated Network mode** you will need [SGCT](https://github.com/opensgct/sgct) as an additional external dependency.
+
+The complete list of dependencies we have is:
+- [assimp](https://github.com/assimp/assimp): submodule (loading of triangle meshes)
+- [g3log](https://github.com/KjellKod/g3log): submodule (asynchronous logging)
+- [glfw](https://github.com/glfw/glfw): submodule, only in **Stand alone mode** otherwise part of [SGCT](https://github.com/opensgct/sgct).
+- [glm](https://github.com/g-truc/glm): submodule, only in **Stand alone mode** otherwise part of [SGCT](https://github.com/opensgct/sgct).
+- [imgui](https://github.com/ocornut/imgui): submodule (GUI)
+- [stb](https://github.com/nothings/stb): submodule (loading of images)
+- [tuio](https://github.com/viscom-ulm/TUIO11_CPP): submodule, only for **Touch support**
+- [SGCT](https://github.com/opensgct/sgct): external, needed for **Network mode** and **Calibrated Network mode**
+
+Using CMake
+-----------
+
+To create the project files for your local compiler and IDE we use [CMake](https://cmake.org/) (version 3.9 is required).
+For easier use we recommend the CMake GUI that is (at least on Windows environments) shipped with CMake.
+
+To use CMake from the command line use
+~~~ console
+mkdir build
+cd build
+cmake ..
+~~~
+from a console inside the source folder.
+With
+~~~ console
+cmake -D <var>:<type>=<value> ..
+~~~
+you can specify different variables for the build as described in Sec. [CMake Parameters].
+To create projects for a specific IDE (e.g. **Xcode**)
+~~~
+cmake -G Xcode ..
+~~~
+
+In the GUI you need to set the source folder to where you cloned the source code to (there is a `CMakeLists.txt` file in the directory).
+Set the binary / build directory to a subfolder of the source folder (that does not need to exist yet).
+We recommend calling the folder `build`.
+After clicking *Configure* CMake will most likely report an error.
+This is because by default usage of SGCT is enabled.
+To fix this either disable SGCT (uncheck the `VISCOM_USE_SGCT` parameter) or provide the correct include and library paths (see Sec. [Automatically Finding the SGCT Library]).
+There are several other parameters (check the *Grouped* checkbox to get a better overview) and the ones that have an influence on the framework start with `SGCT` or `VISCOM`.
+An overview of the parameters is given in Table [cmakeparams].
+After setting the parameters correctly press *Configure* and *Generate*.
+
+### CMake Parameters
+
+There are several parameters for the build.
+Most of them concern other libraries and will not be described here (there is usually no need to change them).
+The most important parameters are listed in Table [cmakeparams].
+Other parameters should not be changed.
+
+Parameter                | Type   | Description
+-------------------------|--------|------------
+`SGCT_DEBUG_LIBRARY`     | PATH   | Path to the debug library of SGCT (see Sec. [Automatically Finding the SGCT Library])
+`SGCT_INCLUDE_DIRECTORY` | PATH   | Include path of SGCT (see Sec. [Automatically Finding the SGCT Library])
+`SGCT_RELEASE_LIBRARY`   | PATH   | Path to the release library of SGCT (see Sec. [Automatically Finding the SGCT Library])
+`VISCOM_APP_NAME`        | STRING | The name of the application (see Sec. [Creating Your Own Application])
+`VISCOM_CONFIG_NAME`     | STRING | The name of the configuration to use (see Sec. [Screen Configurations])
+`VISCOM_OPENGL_PROFILE`  | STRING | The OpenGL profile your application uses.
+`VISCOM_LOCAL_ONLY`      | BOOL   | If this flag ist set , the **Calibrated Network mode** is *disabled*
+`VISCOM_USE_SGCT`        | BOOL   | Switch between **(Calibrated) Network mode** (if set) and **Stand alone mode** (if unset).
+`VISCOM_USE_TUIO`        | BOOL   | Switch for **Touch support**.
+[Table [cmakeparams]: Parameters and types to influence the build.]
+
+The `VISCOM_USE_TUIO` flag is independent of other parameter and enables **TUIO** support.
+The other two flags define the options described in Sec. [Preface].
+An overview how these flags need to be set for each option is given in Table [cmakeparamoptions].
+
+Option                      | `VISCOM_LOCAL_ONLY` | `VISCOM_USE_SGCT`
+----------------------------|---------------------|-----------------
+**Stand alone mode**        |         x           |
+**Network mode**            |         x           |         x
+**Calibrated Network mode** |                     |         x
+[Table [cmakeparamoptions]: Overview how the different build flags influence the framework options.]
+
+Automatically Finding the SGCT Library
+--------------------------------------
+
+The three SGCT paths can be set either by hand or by an environment variable.
+When downloading the SGCT binaries (or building SGCT from source) you will get a folder with (at least) the subfolders:
+- `include`
+- `lib`
+The include folder will be the value to set for `SGCT_INCLUDE_DIRECTORY`, the libraries will be in the `lib` folder.
+When setting the environment variable **`SGCT_ROOT_DIR`** to this folder the three build parameters will be set automatically.
+
+Screen Configurations
+---------------------
+
+When running in **Stand alone mode** the screen configuration is very limited.
+In **Network mode** and **Calibrated Network mode** the screen configurations are managed by SGCT.
+We have several existing configurations that should cover most usecases.
+To choose the configuration you need to set the `VISCOM_CONFIG_NAME` build parameter.
+The most simple configuration (`single`) is a single screen running on a single local PC.
+The next more complicated configuration (`localms`) is two windows running on different machines.
+Its usecase is to test your application in a network context while still only needing a single machine.
+We explain in Sec. [Running an Application] how to start several instances of the application locally using this configuration.
+
+Furthermore there are configurations that will work in the Visualization Lab.
+They run on 7 machines (1 coordinator, 6 workers) with several windows on each machine.
+The number of windows depends on whether stereo mode or mono mode is used.
+These configurations are not part of this document an described in the HOWTO of the lab.
+
+Running an Application
+======================
+
+To find all the correct paths the final application expects there to be a configuration file containing this and other information.
+This file is generated by CMake and for single screen configurations can be ignored (the correct one will be selected automatically).
+When running the application on the cluster this is also the case (assumed you installed the application correctly, which is also done by CMake).
+The default configuration is `framework.cfg`
+
+When running two different nodes locally you need to pass each node the correct configuration file.
+The coordinator node uses the *standard* configuration file and does not need any special attention.
+~~~ console
+ProjectorFramework.exe
+~~~
+The worker node needs to be started with the `framework_local_worker.cfg` configuration file as parameter.
+~~~ console
+ProjectorFramework.exe framework_local_worker.cfg
+~~~
+
+In Visual Studio we also added a new project configuration (*DebugWorker*) to simplify debugging a local worker node.
+To do that you need to tell Visual Studio to start this configuration always with the `framework_local_worker.cfg` parameter.
+
+Creating Your Own Application
+=============================
+
+To create your own application using the *Visualization Lab Framework* there are two possibilitys.
+You can either fork the existing framework demo application (https://github.com/viscom-ulm/viscom_framework) or write your own one.
+We recommend forking as a lot of things are done for you then but we will describe writing your own one also.
+
+Forking the Demo Application
+----------------------------
+
+- Go to https://github.com/viscom-ulm/viscom_framework .
+- Download the `.zip` file there or use git to pull the repository.
+- Done.
+- Alternatively: Push the Demo to your own repository.
+
+You can also use the forking provided by github and other services of course.
+If you need to modify the basic parts of your application the next section might help you to do that.
+
+Writing your own Application
+----------------------------
+
+Writing your own application can be divided in several parts.
+First you need a minimal CMake file that uses the `VISCOMCore` library and generates the configuration file from a template.
+Next you need to create a `main` function to start the program.
+As a last step you need to implement the application node which will be explained in more detail in Sec. [Programming the Framework].
+
+### CMake and Configuration File
+
+A minimal working CMake file will look like this:
+~~~ cmake
+cmake_minimum_required(VERSION 3.9)
+SET(APP_NAME ProjectorFramework)
+
+PROJECT(${APP_NAME})
+
+include(${PROJECT_SOURCE_DIR}/extern/fwcore/CMake_core.cmake)
+
+set(VISCOM_CONFIG_NAME "single" CACHE STRING
+        "Name/directory of the configuration files to be used.")
+set(VISCOM_VIRTUAL_SCREEN_X 1920 CACHE INTEGER
+        "Virtual screen size in x direction.")
+set(VISCOM_VIRTUAL_SCREEN_Y 1080 CACHE INTEGER
+        "Virtual screen size in y direction.")
+
+file(GLOB_RECURSE SHADER_FILES ${PROJECT_SOURCE_DIR}/resources/shader/*.*)
+file(GLOB_RECURSE SRC_FILES
+    ${PROJECT_SOURCE_DIR}/src/app/*.h
+    ${PROJECT_SOURCE_DIR}/src/app/*.cpp)
+file(GLOB SRC_FILES_ROOT
+    ${PROJECT_SOURCE_DIR}/src/*.h
+    ${PROJECT_SOURCE_DIR}/src/*.cpp)
+list(APPEND SRC_FILES ${SRC_FILES_ROOT})
+source_group("shader" FILES ${SHADER_FILES})
+
+add_executable(${APP_NAME} ${SRC_FILES} ${SHADER_FILES})
+set_target_properties(${APP_NAME} PROPERTIES OUTPUT_NAME ${VISCOM_APP_NAME})
+set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 17)
+target_include_directories(${APP_NAME} PRIVATE src)
+target_link_libraries(${APP_NAME} VISCOMCore)
+
+set(VISCOM_CONFIG_BASE_DIR "../")
+set(VISCOM_CONFIG_PROGRAM_PROPERTIES
+        "../config/${VISCOM_CONFIG_NAME}/propertiesPrecompute.xml")
+set(VISCOM_CONFIG_SGCT_CONFIG
+        "../data/${VISCOM_CONFIG_NAME}/${VISCOM_CONFIG_NAME}.xml")
+set(VISCOM_CONFIG_PROJECTOR_DATA "../data/${VISCOM_CONFIG_NAME}/ProjectorData.xml")
+set(VISCOM_CONFIG_LOCAL "0")
+configure_file("framework.cfg" "framework.cfg")
+set(VISCOM_CONFIG_LOCAL "1 --slave")
+configure_file("framework.cfg" "framework_local_slave.cfg")
+set(VISCOM_CONFIG_BASE_DIR "./")
+set(VISCOM_CONFIG_PROGRAM_PROPERTIES
+        "../../calibration/config/${VISCOM_CONFIG_NAME}/propertiesPrecompute.xml")
+set(VISCOM_CONFIG_SGCT_CONFIG
+        "../../calibration/data/${VISCOM_CONFIG_NAME}/${VISCOM_CONFIG_NAME}.xml")
+set(VISCOM_CONFIG_PROJECTOR_DATA
+        "../../calibration/data/${VISCOM_CONFIG_NAME}/ProjectorData.xml")
+set(VISCOM_CONFIG_LOCAL "-1")
+configure_file("framework.cfg" "framework_install.cfg")
+
+copy_core_lib_dlls(${APP_NAME})
+
+install(TARGETS ${APP_NAME} RUNTIME DESTINATION
+        ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME})
+install(DIRECTORY resources/ DESTINATION
+        ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME}/resources)
+install(FILES ${CMAKE_BINARY_DIR}/framework_install.cfg DESTINATION
+        ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME} RENAME framework.cfg)
+~~~
+
+Here you can change the name of the Program (currently `ProjectorFramework`) to to any other name.
+
+The configuration file should be this:
+~~~ none
+BASE_DIR= ${VISCOM_CONFIG_BASE_DIR}
+VISCOM_CONFIG= ${VISCOM_CONFIG_NAME}
+PROGRAM_PROPERTIES= ${VISCOM_CONFIG_PROGRAM_PROPERTIES}
+SGCT_CONFIG= ${VISCOM_CONFIG_SGCT_CONFIG}
+PROJECTOR_DATA= ${VISCOM_CONFIG_PROJECTOR_DATA}
+LOCAL= ${VISCOM_CONFIG_LOCAL}
+TUIO_PORT= ${VISCOM_TUIO_PORT}
+VIRTUAL_SCREEN_X= ${VISCOM_VIRTUAL_SCREEN_X}
+VIRTUAL_SCREEN_Y= ${VISCOM_VIRTUAL_SCREEN_Y}
+NEAR_PLANE_SIZE_X= ${VISCOM_NEAR_PLANE_SIZE_X}
+NEAR_PLANE_SIZE_Y= ${VISCOM_NEAR_PLANE_SIZE_Y}
+OPENGL_PROFILE= ${VISCOM_OPENGL_PROFILE}
+~~~
+
+### Main Function
+
+The `main` function needs to take care of setting up the logging, load the configuration file, initialize and start the application.
+
+Logging can be set up like in Listing [logger].
+You can modify which logging levels you want to enable or which sink you want to use.
+There is the g3log default sink available and one implemented by the framework.
+You can also implement your own sinks or use one provided by [g3sinks](https://github.com/KjellKod/g3sinks).
+
+~~~
+int main(int argc, char** argv) {
+    const std::string directory = "./";
+    const std::string name = "viscomlabfw.log";
+    auto worker = g3::LogWorker::createLogWorker();
+    auto handle = worker->addSink(std::make_unique<vku::FileSink>(name,
+        directory, false), &vku::FileSink::fileWrite);
+
+    if constexpr (viscom::DEBUG_MODE) g3::log_levels::enable(WARNING);
+    else g3::log_levels::disable(WARNING);
+
+    initializeLogging(worker.get());
+    ...
+}
+~~~
+[Listing [logger]: Example of how to initialize the logging.]
+
+The next step would be to load the configuration.
+We already provide a loader (`viscom::LoadConfiguration(...)`) for that which you should use.
+It takes the filename of the configuration file to load.
+Listing [config] shows how to load the configuration provided by the command line or alternatively using the default configuration file.
+
+~~~
+int main(int argc, char** argv) {
+    ...
+    viscom::FWConfiguration config;
+    if (argc > 1) config = viscom::LoadConfiguration(argv[1]);
+    else config = viscom::LoadConfiguration("framework.cfg");
+    ...
+}
+~~~
+[Listing [config]: Example of how to load the configuration.]
+
+The last thing needed to run the application is to initialize the nodes and start the main loop.
+A node can be initialized using the `Application_Init(...)` function.
+It takes as parameters the configuration loaded before and two `std::function`s to create your implementations of `viscom::ApplicationNodeBase` for the coordinator and workers.
+These two do **not** necessaryly need to differ.
+Listing [nodeinit] gives an example of how to initialize the nodes.
+In this case we use two different implementations for coordinator and workers but they could be the same.
+In Sec. [Programming the Framework] we will explain how to implement the nodes.
+The main loop is hidden away in our framework and is started by calling the `Render` method of the application created.
+
+~~~
+int main(int argc, char** argv) {
+    ...
+    auto appNode = Application_Init(config,
+        [](viscom::ApplicationNodeInternal* node)
+            { return std::make_unique<viscom::CoordinatorNode>(node); },
+        [](viscom::ApplicationNodeInternal* node)
+            { return std::make_unique<viscom::WorkerNode>(node); }
+    );
+
+    // Main loop
+    appNode->Render();
+    ...
+}
+~~~
+[Listing [nodeinit]: Example of how to initialize the nodes.]
+
+Programming the Framework
+=========================
+
+After creating your application in Sec. [Writing your own Application] you need to implement your nodes.
+This is where everything in your application happends so we put it in an extra section.
+
+All nodes need to derive from `ApplicationNodeBase`.
+This is a base class that on one hand provides all entry points your application can hook into as `virtual` methods while also providing access to the frameworks internal information.
+There is basically three ways to create these nodes that might make sense in some case:
+- **All Nodes use the same class**: In this case all nodes will do the same calculations and in the end display the same image (or at least a part of the same image).
+- **Coordinator and worker nodes have completely separate classes**: The total opposite of the last possibility.
+  In this case the coordinator will show something *unrelated* to the worker nodes.
+  You can still share information by using synchonization features but no code is shared.
+- **Coordinator and worker nodes have classes that share a common base class**: This is probably the most common usecase and also the one provided by default.
+  In this case the shared part can be implemented in the common base class (that of course needs to implement `ApplicationNodeBase`) and specific parts can be implemented in they derived classes.
+  This allows for example to show GUI overlays on the coordinator node that are not shown on the workers. Figure [nodediagram] shows the hierarchy of this as implemented in our default implementation.
+
+***********************************************
+*          +-----------------------+          *
+*          |  ApplicationNodeBase  |          *
+*          +-----------------------+          *
+*                        ^                    *
+*                        |                    *
+*     +---------------------------------+     *
+*     |  ApplicationNodeImplementation  |     *
+*     +---------------------------------+     *
+*                        ^                    *
+*                        |                    *
+*            +-----------+---------+          *
+*            |                     |          *
+*  +-------------------+   +--------------+   *
+*  |  CoordinatorNode  |   |  WorkerNode  |   *
+*  +-------------------+   +--------------+   *
+***********************************************
+[Figure [nodediagram]: Class diagram of coordinator and worker nodes sharing the same base class.]
+
+`ApplicationNodeBase` has 22 `virtual` methods that can (but do not need to) be overriden to add functionality to your application nodes.
+These methods can be divided into four groups:
+- Application workflow
+- Input
+- Rendering
+- Data transfer / synchronization
+
+Application workflow
+--------------------
+
+The `virtual` methods to hook into the application workflow are
+~~~
+virtual void PreWindow();
+virtual void InitOpenGL();
+virtual void UpdateFrame(double currentTime, double elapsedTime);
+virtual void CleanUp();
+~~~
+
+~~~
+virtual bool KeyboardCallback(int key, int scancode, int action, int mods);
+virtual bool CharCallback(unsigned int character, int mods);
+virtual bool MouseButtonCallback(int button, int action);
+virtual bool MousePosCallback(double x, double y);
+virtual bool MouseScrollCallback(double xoffset, double yoffset);
+
+virtual bool AddTuioCursor(TUIO::TuioCursor *tcur);
+virtual bool UpdateTuioCursor(TUIO::TuioCursor *tcur);
+virtual bool RemoveTuioCursor(TUIO::TuioCursor *tcur);
+~~~
+
+~~~
+virtual void ClearBuffer(FrameBuffer& fbo);
+virtual void DrawFrame(FrameBuffer& fbo);
+virtual void Draw2D(FrameBuffer& fbo);
+~~~
+
+~~~
+virtual bool DataTransferCallback(void* receivedData, int receivedLength, std::uint16_t packageID, int clientID);
+virtual bool DataAcknowledgeCallback(std::uint16_t packageID, int clientID);
+virtual bool DataTransferStatusCallback(bool connected, int clientID);
+
+virtual void PreSync();
+virtual void UpdateSyncedInfo();
+virtual void EncodeData();
+virtual void DecodeData();
+~~~
+
+
+General Concepts of the `VISCOMCore` Library
+============================================
+
+Description of Important Classes and Methods of the `VISCOMCore` Library
+========================================================================
+
+
+<!-- Markdeep: --><script src="https://casual-effects.com/markdeep/markdeep.min.js"></script>
+<!-- <script src="https://casual-effects.com/markdeep/latest/markdeep.min.js"></script> -->
