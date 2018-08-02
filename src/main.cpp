@@ -39,7 +39,7 @@ int main(int argc, char** argv)
     config.resourceSearchPaths_.emplace_back(config.baseDirectory_ + "extern/fwenh/resources/");
     config.resourceSearchPaths_.emplace_back("");
 
-    if (argc > 2) viscom::MasterNode::SetSingleFile(argv[2]);
+    if (argc > 2) viscom::CoordinatorNode::SetSingleFile(argv[2]);
 
     auto appNode = Application_Init(config, [](viscom::ApplicationNodeInternal* node) { return std::make_unique<viscom::CoordinatorNode>(node); },
         [](viscom::ApplicationNodeInternal* node) { return std::make_unique<viscom::WorkerNode>(node); });

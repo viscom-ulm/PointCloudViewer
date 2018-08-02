@@ -30,7 +30,7 @@ namespace viscom {
 
     ApplicationNodeImplementation::ApplicationNodeImplementation(ApplicationNodeInternal* appNode) :
         ApplicationNodeBase{ appNode },
-        camera_(glm::vec3(0.0f, 0.0f, 5.0f), *appNode->GetCamera())
+        camera_(glm::vec3(0.0f, 0.0f, 5.0f), *GetCamera())
     {
     }
 
@@ -134,7 +134,7 @@ namespace viscom {
             });
         }
 
-        if (!mesh_) {
+        if (!renderModel_ || !mesh_) {
             fbo.DrawToFBO([this, batched]() {
                 DrawPointCloudPoints(batched);
             });
@@ -323,6 +323,16 @@ namespace viscom {
         meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
+    void ApplicationNodeImplementation::SetEnvironmentMap(std::shared_ptr<Texture> envMap)
+    {
+        envMap_ = std::move(envMap);
+
+        gl::glBindTexture(gl::GL_TEXTURE_2D, envMap_->getTextureId());
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_S, gl::GL_REPEAT);
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_T, gl::GL_REPEAT);
+        gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
+    }
+
     void ApplicationNodeImplementation::CleanUp()
     {
         if (vaoPointCloud_ != 0) gl::glDeleteVertexArrays(1, &vaoPointCloud_);
@@ -357,6 +367,15 @@ namespace viscom {
     {
         camera_.HandleMouse(-1, 0, static_cast<float>(yoffset), this);
         return true;
+    }
+
+    bool ApplicationNodeImplementation::KeyboardCallback(int key, int scancode, int action, int mods)
+    {
+        if (key == GLFW_KEY_R) {
+            GetGPUProgramManager().RecompileAll();
+            return true;
+        }
+        return false;
     }
 
     void ApplicationNodeImplementation::LoadPointCloudGPUAO(std::vector<PointCloudPointAO>& pointCloud)

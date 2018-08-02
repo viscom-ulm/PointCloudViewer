@@ -25,7 +25,8 @@ namespace viscom {
     std::string CoordinatorNode::singleFile_ = "";
 
     CoordinatorNode::CoordinatorNode(ApplicationNodeInternal* appNode) :
-        ApplicationNodeImplementation{ appNode }
+        ApplicationNodeImplementation{ appNode },
+        inputDir_{ std::filesystem::canonical(std::filesystem::path(".")).string() }
     {
         inputDirEntries_ = GetDirectoryContent(inputDir_, false);
     }
@@ -52,6 +53,11 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
+                if (HasMesh()) {
+                    auto renderModel = GetRenderModel();
+                    ImGui::Checkbox("Render Model", &renderModel);
+                    SetRenderModel(renderModel);
+                }
                 // GetDOF()->RenderParameterSliders();
                 // GetToneMapping()->RenderParameterSliders();
                 // GetBloom()->RenderParameterSliders();
@@ -77,6 +83,7 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (!inputFileSelected_ && ImGui::Begin("Select point cloud file", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
+                ImGui::BeginChild("Scrolling", ImVec2(0.0f, -40.0f));
                 bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
                     std::error_code ec;
@@ -106,6 +113,7 @@ namespace viscom {
                         }
                     }
                 }
+                ImGui::EndChild();
 
                 if (!selectedFilename.empty()) {
                     inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
@@ -410,7 +418,7 @@ namespace viscom {
 
     bool CoordinatorNode::KeyboardCallback(int key, int scancode, int action, int mods)
     {
-        if (ApplicationNodeBase::KeyboardCallback(key, scancode, action, mods)) return true;
+        if (ApplicationNodeImplementation::KeyboardCallback(key, scancode, action, mods)) return true;
 
         switch (key)
         {
