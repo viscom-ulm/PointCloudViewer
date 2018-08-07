@@ -169,7 +169,7 @@ namespace viscom {
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
 
-        glm::mat4 modelMatrix(0.8f);
+        glm::mat4 modelMatrix(1.0f);
         auto MVP = GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
         if (pcType_ == PCType::AO) {
             gl::glUseProgram(aoProgram_->getProgramId());
@@ -232,13 +232,14 @@ namespace viscom {
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
 
-        // gl::glDisable(gl::GL_DEPTH_TEST);
+        gl::glDisable(gl::GL_DEPTH_TEST);
         gl::glDepthMask(gl::GL_FALSE);
         gl::glEnable(gl::GL_BLEND);
         gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
         gl::glBlendFuncSeparate(gl::GL_ONE, gl::GL_ONE, gl::GL_ONE, gl::GL_ONE);
 
-        auto MVP = GetCamera()->GetViewPerspectiveMatrix();
+        glm::mat4 modelMatrix(1.0f);
+        auto MVP = GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
         if (pcType_ == PCType::AO) {
             gl::glUseProgram(distanceSumAOProgram_->getProgramId());
             gl::glUniformMatrix4fv(distanceSumAOUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
@@ -289,7 +290,7 @@ namespace viscom {
 
         gl::glDisable(gl::GL_BLEND);
         gl::glDepthMask(gl::GL_TRUE);
-        // gl::glEnable(gl::GL_DEPTH_TEST);
+        gl::glEnable(gl::GL_DEPTH_TEST);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);

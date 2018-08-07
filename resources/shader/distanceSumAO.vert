@@ -5,7 +5,7 @@ layout(location = 1) in vec3 normal;
 layout(location = 2) in float ao;
 
 uniform mat4 viewProjection;
-uniform float bbRadius = 10.0f;
+uniform float bbRadius = 5.0f;
 
 out vec3 vertPosition;
 out vec3 vertNormal;

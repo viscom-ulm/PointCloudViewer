@@ -40,16 +40,16 @@ namespace viscom::enh {
     {
         const double mouseWheelSpeed = 8.0;
 
-        float radius = glm::length(GetPosition());
-        radius -= static_cast<float>(mouseWheelDelta_ * mouseWheelSpeed * elapsedTime);
-        radius = glm::clamp(radius, 0.01f, 20.0f);
+        auto radius = glm::length(glm::dvec3(GetPosition()));
+        radius -= static_cast<double>(mouseWheelDelta_) * mouseWheelSpeed * elapsedTime;
+        radius = glm::clamp(radius, 0.01, 20.0);
         mouseWheelDelta_ = 0.0f;
 
-        auto camOrient = glm::inverse(GetOrientation());
-        glm::quat camOrientStep = camArcball_.GetWorldRotation(elapsedTime, camOrient);
+        auto camOrient = glm::inverse(glm::dquat(GetOrientation()));
+        glm::dquat camOrientStep = camArcball_.GetWorldRotation(elapsedTime, camOrient);
         camOrient = camOrientStep * camOrient;
-        glm::mat3 matOrient{ glm::mat3_cast(camOrient) };
-        auto camPos = radius * (matOrient * baseCamPos_);
+        auto matOrient{ glm::mat3_cast(camOrient) };
+        auto camPos = radius * glm::normalize(matOrient * baseCamPos_);
 
         SetCameraPosition(camPos);
         SetCameraOrientation(glm::inverse(camOrient));

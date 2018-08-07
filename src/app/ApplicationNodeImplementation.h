@@ -107,7 +107,7 @@ namespace viscom {
         void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
 
         float boundingSphereRadius_ = 0.0f;
-        float distancePower_ = 1.0f;
+        float distancePower_ = 4.0f;
         enh::ArcballCameraEnhanced camera_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
@@ -117,7 +117,7 @@ namespace viscom {
         // std::unique_ptr<enh::BloomEffect> bloom_;
         // std::unique_ptr<enh::FilmicTMOperator> tm_;
 
-        /** Holds wether to render the model. */
+        /** Holds weather to render the model. */
         bool renderModel_;
 
         /** Holds the selected file type. */
