@@ -12,6 +12,9 @@
 
 namespace viscom {
 
+    class GPUProgram;
+    class Mesh;
+
     struct GridVertex
     {
         glm::vec3 position_;

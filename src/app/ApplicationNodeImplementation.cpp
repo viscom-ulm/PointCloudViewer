@@ -19,21 +19,23 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Vertices.h"
-#include "core/imgui/imgui_impl_glfw_gl3.h"
 #include "enh/gfx/postprocessing/DepthOfField.h"
 #include "enh/gfx/postprocessing/BloomEffect.h"
 #include "enh/gfx/postprocessing/FilmicTMOperator.h"
 #include "enh/gfx/env/EnvironmentMapRenderer.h"
 #include "app/gfx/mesh/MeshRenderable.h"
 #include "app/Vertices.h"
-// #include <Python.h>
-// #include <numpy/arrayobject.h>
+
+#include <Python.h>
+
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/arrayobject.h>
 
 namespace viscom {
 
     ApplicationNodeImplementation::ApplicationNodeImplementation(ApplicationNodeInternal* appNode) :
         ApplicationNodeBase{ appNode },
-        camera_(glm::vec3(0.0f, 0.0f, 5.0f), *appNode->GetCamera())
+        camera_(glm::vec3(0.0f, 0.0f, 5.0f), *GetCamera())
     {
     }
 
@@ -95,6 +97,69 @@ namespace viscom {
         // dof_ = std::make_unique<enh::DepthOfField>(this);
         // bloom_ = std::make_unique<enh::BloomEffect>(this);
         // tm_ = std::make_unique<enh::FilmicTMOperator>(this);
+
+        
+        std::array<npy_intp, 2> dims = { 1000, 4 };
+
+        std::vector<float> test;
+        constexpr float smallIncr = 0.1f;
+        constexpr float bigIncr = 1.0f;
+
+        float cVal = 0.0f;
+        for (std::size_t i = 0; i < static_cast<std::size_t>(dims[0]); ++i) {
+            float arrayVal = cVal;
+            for (std::size_t j = 0; j < static_cast<std::size_t>(dims[1]); ++j) {
+                test.push_back(arrayVal);
+                arrayVal += smallIncr;
+            }
+            cVal += bigIncr;
+        }
+
+        auto pyArray = PyArray_SimpleNewFromData(2, dims.data(), NPY_FLOAT, test.data());
+
+        using namespace std::string_literals;
+        auto programName = Resource::FindResourceLocation("python/test.py", &GetApplication()->GetFramework());
+        auto functionName = "mFunct"s;
+        auto pName = PyUnicode_DecodeFSDefault(programName.c_str());
+        /* Error checking of pName left out */
+
+        auto pModule = PyImport_Import(pName);
+        Py_DECREF(pName);
+
+        if (pModule != nullptr) {
+            auto pFunc = PyObject_GetAttrString(pModule, functionName.c_str());
+            /* pFunc is a new reference */
+
+            if (pFunc && PyCallable_Check(pFunc)) {
+                auto pArgs = PyTuple_New(1);
+                PyTuple_SetItem(pArgs, 0, pyArray);
+                auto pValue = PyObject_CallObject(pFunc, pArgs);
+                Py_DECREF(pArgs);
+                if (pValue != nullptr) {
+                    printf("Result of call: %ld\n", PyLong_AsLong(pValue));
+                    Py_DECREF(pValue);
+                }
+                else {
+                    Py_DECREF(pFunc);
+                    Py_DECREF(pModule);
+                    PyErr_Print();
+                    fprintf(stderr, "Call failed\n");
+                }
+            }
+            else {
+                if (PyErr_Occurred())
+                    PyErr_Print();
+                fprintf(stderr, "Cannot find function \"%s\"\n", functionName.c_str());
+            }
+            Py_XDECREF(pFunc);
+            Py_DECREF(pModule);
+        }
+        else {
+            PyErr_Print();
+            fprintf(stderr, "Failed to load \"%s\"\n", programName.c_str());
+        }
+
+        // Py
     }
 
     void ApplicationNodeImplementation::UpdateFrame(double currentTime, double elapsedTime)
@@ -137,15 +202,21 @@ namespace viscom {
             });
         }
 
-        if (!mesh_) {
+        if (!renderModel_ || !mesh_) {
             fbo.DrawToFBO([this, batched]() {
                 DrawPointCloudPoints(batched);
             });
         }
         else {
             deferredFBO.DrawToFBO(deferredDrawIndices_, [this]() {
+            // fbo.DrawToFBO([this]() {
                 DrawMeshDeferred();
             });
+
+
+            // fbo.DrawToFBO([this, batched]() {
+            //     DrawPointCloudPoints(batched);
+            // });
 
             deferredFBO.DrawToFBO(distanceSumDrawIndices_, [this, &deferredFBO]() {
                 DrawPointCloudDistanceSum(deferredFBO);
@@ -166,12 +237,13 @@ namespace viscom {
         gl::glBindVertexArray(vaoPointCloud_);
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
 
-        glm::mat4 modelMatrix(0.8f);
+        glm::mat4 modelMatrix(1.0f);
         auto MVP = GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
         if (pcType_ == PCType::AO) {
             gl::glUseProgram(aoProgram_->getProgramId());
             gl::glUniformMatrix4fv(aoMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1f(aoBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
+            gl::glUniform3fv(aoProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
         }
 
@@ -180,6 +252,7 @@ namespace viscom {
             gl::glUniformMatrix4fv(matteMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1i(matteRenderTypeLoc_, matteRenderType_);
             gl::glUniform1f(matteBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
+            gl::glUniform3fv(matteProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
         }
 
@@ -188,6 +261,7 @@ namespace viscom {
             gl::glUniformMatrix4fv(subsurfaceMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
             gl::glUniform1i(subsurfaceRenderTypeLoc_, subsurfaceRenderType_);
             gl::glUniform1f(subsurfaceBBRLoc_, batched ? boundingSphereRadius_ / 2.f : boundingSphereRadius_);
+            gl::glUniform3fv(subsurfaceProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
         }
 
@@ -204,25 +278,20 @@ namespace viscom {
     {
         auto VP = GetCamera()->GetViewPerspectiveMatrix();
 
-        gl::glCullFace(gl::GL_FRONT);
+        gl::glDisable(gl::GL_CULL_FACE);
         glm::mat4 modelMatrix(10.f);
         modelMatrix[3][3] = 1.f;
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
+        gl::glUniform3fv(deferredProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
         meshRenderable_->Draw(meshModel_ * modelMatrix);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);
         gl::glUseProgram(0);
 
-        gl::glCullFace(gl::GL_BACK);
+        gl::glEnable(gl::GL_CULL_FACE);
 
-        // Py_Initialize();
-        // std::array<int, 2> dims = { 1000, 4 };
-        // std::vector<float> test;
-        //auto pyArray = PyArray_SimpleNewFromData(2, dims.data(), NPY_FLOAT, test.data());
-
-        // Py
     }
 
     void ApplicationNodeImplementation::DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO)
@@ -238,7 +307,8 @@ namespace viscom {
         gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
         gl::glBlendFuncSeparate(gl::GL_ONE, gl::GL_ONE, gl::GL_ONE, gl::GL_ONE);
 
-        auto MVP = GetCamera()->GetViewPerspectiveMatrix();
+        glm::mat4 modelMatrix(1.0f);
+        auto MVP = GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
         if (pcType_ == PCType::AO) {
             gl::glUseProgram(distanceSumAOProgram_->getProgramId());
             gl::glUniformMatrix4fv(distanceSumAOUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
@@ -250,7 +320,8 @@ namespace viscom {
             gl::glActiveTexture(gl::GL_TEXTURE3);
             gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
             gl::glUniform1i(distanceSumAOUniformLocations_[2], 3);
-            gl::glUniform1f(distanceSumAOUniformLocations_[3], 1.0f);
+            gl::glUniform1f(distanceSumAOUniformLocations_[3], distancePower_);
+            gl::glUniform3fv(distanceSumAOProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcAO_.size()));
         }
 
@@ -265,7 +336,8 @@ namespace viscom {
             gl::glActiveTexture(gl::GL_TEXTURE3);
             gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
             gl::glUniform1i(distanceSumMatteUniformLocations_[2], 3);
-            gl::glUniform1f(distanceSumMatteUniformLocations_[3], 1.0f);
+            gl::glUniform1f(distanceSumMatteUniformLocations_[3], distancePower_);
+            gl::glUniform3fv(distanceSumMatteProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcMatte_.size()));
         }
 
@@ -280,7 +352,8 @@ namespace viscom {
             gl::glActiveTexture(gl::GL_TEXTURE3);
             gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
             gl::glUniform1i(distanceSumSubsurfaceUniformLocations_[2], 3);
-            gl::glUniform1f(distanceSumSubsurfaceUniformLocations_[3], 1.0f);
+            gl::glUniform1f(distanceSumSubsurfaceUniformLocations_[3], distancePower_);
+            gl::glUniform3fv(distanceSumSubsurfaceProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camera_.GetPosition()));
             gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(pcSubsurface_.size()));
         }
 
@@ -320,6 +393,16 @@ namespace viscom {
         meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
+    void ApplicationNodeImplementation::SetEnvironmentMap(std::shared_ptr<Texture> envMap)
+    {
+        envMap_ = std::move(envMap);
+
+        gl::glBindTexture(gl::GL_TEXTURE_2D, envMap_->getTextureId());
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_S, gl::GL_REPEAT);
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_T, gl::GL_REPEAT);
+        gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
+    }
+
     void ApplicationNodeImplementation::CleanUp()
     {
         if (vaoPointCloud_ != 0) gl::glDeleteVertexArrays(1, &vaoPointCloud_);
@@ -354,6 +437,15 @@ namespace viscom {
     {
         camera_.HandleMouse(-1, 0, static_cast<float>(yoffset), this);
         return true;
+    }
+
+    bool ApplicationNodeImplementation::KeyboardCallback(int key, int scancode, int action, int mods)
+    {
+        if (key == GLFW_KEY_R) {
+            GetGPUProgramManager().RecompileAll();
+            return true;
+        }
+        return false;
     }
 
     void ApplicationNodeImplementation::LoadPointCloudGPUAO(std::vector<PointCloudPointAO>& pointCloud)

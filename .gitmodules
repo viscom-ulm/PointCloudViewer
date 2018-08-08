@@ -5,3 +5,7 @@
 [submodule "extern/fwenh"]
 	path = extern/fwenh
 	url = https://github.com/dasmysh/viscom_framework_enh.git
+[submodule "extern/pybind11"]
+	path = extern/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = master

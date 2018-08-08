@@ -1,24 +1,22 @@
 /**
- * @file   MasterNode.h
+ * @file   CoordinatorNode.h
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2016.11.25
  *
- * @brief  Declaration of the ApplicationNodeImplementation for the master node.
+ * @brief  Declaration of the ApplicationNodeImplementation for the coordinator node.
  */
 
 #pragma once
 
-#include "../app/ApplicationNodeImplementation.h"
-
-// #include "core/open_gl.h"
+#include "app/ApplicationNodeImplementation.h"
 
 namespace viscom {
 
-    class MasterNode final : public ApplicationNodeImplementation
+    class CoordinatorNode final : public ApplicationNodeImplementation
     {
     public:
-        explicit MasterNode(ApplicationNodeInternal* appNode);
-        virtual ~MasterNode() override;
+        explicit CoordinatorNode(ApplicationNodeInternal* appNode);
+        virtual ~CoordinatorNode() override;
 
         virtual void InitOpenGL() override;
         virtual void Draw2D(FrameBuffer& fbo) override;

@@ -3,7 +3,7 @@
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2016.11.30
  *
- * @brief  Declaration of the application node implementation common for master and slave nodes.
+ * @brief  Declaration of the application node implementation common for coordinator and worker nodes.
  */
 
 #pragma once
@@ -70,7 +70,7 @@ namespace viscom {
         virtual bool MouseButtonCallback(int button, int action) override;
         virtual bool MousePosCallback(double x, double y) override;
         virtual bool MouseScrollCallback(double xoffset, double yoffset) override;
-
+        virtual bool KeyboardCallback(int key, int scancode, int action, int mods) override;
 
     protected:
         void LoadPointCloudGPUAO(std::vector<PointCloudPointAO>& pointCloud);
@@ -86,14 +86,19 @@ namespace viscom {
         void SetSubsurfaceRenderType(int rt) { subsurfaceRenderType_ = rt; }
 
         void SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi);
-        void SetEnvironmentMap(std::shared_ptr<Texture> envMap) { envMap_ = std::move(envMap); }
+        void SetEnvironmentMap(std::shared_ptr<Texture> envMap);
 
         void ClearRadius() { boundingSphereRadius_ = 0.0f; }
         void AddToBoundingSphere(const glm::vec3& v) { boundingSphereRadius_ = glm::max(boundingSphereRadius_, glm::length(v)); }
+        float& GetDistancePower() { return distancePower_; }
 
         // enh::DepthOfField* GetDOF() { return dof_.get(); }
         // enh::FilmicTMOperator* GetToneMapping() { return tm_.get(); }
         // enh::BloomEffect* GetBloom() { return bloom_.get(); }
+
+        bool HasMesh() const { return static_cast<bool>(mesh_); }
+        bool GetRenderModel() const { return renderModel_; }
+        void SetRenderModel(bool rm) { renderModel_ = rm; }
 
     private:
         void DrawPointCloudPoints(bool batched);
@@ -102,6 +107,7 @@ namespace viscom {
         void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
 
         float boundingSphereRadius_ = 0.0f;
+        float distancePower_ = 4.0f;
         enh::ArcballCameraEnhanced camera_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
@@ -110,6 +116,9 @@ namespace viscom {
         // std::unique_ptr<enh::DepthOfField> dof_;
         // std::unique_ptr<enh::BloomEffect> bloom_;
         // std::unique_ptr<enh::FilmicTMOperator> tm_;
+
+        /** Holds weather to render the model. */
+        bool renderModel_;
 
         /** Holds the selected file type. */
         PCType pcType_;

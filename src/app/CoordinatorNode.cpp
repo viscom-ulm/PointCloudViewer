@@ -1,12 +1,12 @@
 /**
- * @file   MasterNode.cpp
+ * @file   CoordinatorNode.cpp
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2016.11.25
  *
- * @brief  Implementation of the master application node.
+ * @brief  Implementation of the coordinator application node.
  */
 
-#include "MasterNode.h"
+#include "CoordinatorNode.h"
 #include <imgui.h>
 #include "enh/gfx/postprocessing/DepthOfField.h"
 #include "enh/gfx/postprocessing/BloomEffect.h"
@@ -22,17 +22,18 @@
 
 namespace viscom {
 
-    std::string MasterNode::singleFile_ = "";
+    std::string CoordinatorNode::singleFile_ = "";
 
-    MasterNode::MasterNode(ApplicationNodeInternal* appNode) :
-        ApplicationNodeImplementation{ appNode }
+    CoordinatorNode::CoordinatorNode(ApplicationNodeInternal* appNode) :
+        ApplicationNodeImplementation{ appNode },
+        inputDir_{ std::filesystem::canonical(std::filesystem::path(".")).string() }
     {
         inputDirEntries_ = GetDirectoryContent(inputDir_, false);
     }
 
-    MasterNode::~MasterNode() = default;
+    CoordinatorNode::~CoordinatorNode() = default;
 
-    void MasterNode::InitOpenGL()
+    void CoordinatorNode::InitOpenGL()
     {
         ApplicationNodeImplementation::InitOpenGL();
 
@@ -42,7 +43,7 @@ namespace viscom {
         }
     }
 
-    void MasterNode::Draw2D(FrameBuffer& fbo)
+    void CoordinatorNode::Draw2D(FrameBuffer& fbo)
     {
         std::vector<std::string> supportedDriveLetters = { "A:/", "B:/", "C:/", "D:/", "E:/", "F:/", "G:/", "H:/" };
         namespace fs = std::filesystem;
@@ -51,6 +52,12 @@ namespace viscom {
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
             ImGui::StyleColorsClassic();
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
+                ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
+                if (HasMesh()) {
+                    auto renderModel = GetRenderModel();
+                    ImGui::Checkbox("Render Model", &renderModel);
+                    SetRenderModel(renderModel);
+                }
                 // GetDOF()->RenderParameterSliders();
                 // GetToneMapping()->RenderParameterSliders();
                 // GetBloom()->RenderParameterSliders();
@@ -76,6 +83,7 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (!inputFileSelected_ && ImGui::Begin("Select point cloud file", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
+                ImGui::BeginChild("Scrolling", ImVec2(0.0f, -40.0f));
                 bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
                     std::error_code ec;
@@ -105,6 +113,7 @@ namespace viscom {
                         }
                     }
                 }
+                ImGui::EndChild();
 
                 if (!selectedFilename.empty()) {
                     inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
@@ -171,7 +180,7 @@ namespace viscom {
     }
 
 
-    std::vector<std::string> MasterNode::GetDirectoryContent(const std::string& dir, bool pcFilesOnly) const
+    std::vector<std::string> CoordinatorNode::GetDirectoryContent(const std::string& dir, bool pcFilesOnly) const
     {
         namespace fs = std::filesystem;
 
@@ -192,7 +201,7 @@ namespace viscom {
         return content;
     }
 
-    void MasterNode::RenderFolderHeadless(const std::string& folder, bool loadModel)
+    void CoordinatorNode::RenderFolderHeadless(const std::string& folder, bool loadModel)
     {
         auto folderContent = GetDirectoryContent(folder, true);
 
@@ -201,7 +210,7 @@ namespace viscom {
         inputBatchMode_ = false;
     }
 
-    void MasterNode::RenderFileHeadless(const std::string& pointCloud, bool loadModel)
+    void CoordinatorNode::RenderFileHeadless(const std::string& pointCloud, bool loadModel)
     {
         FrameBufferDescriptor headlessFBODesc{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
@@ -242,7 +251,7 @@ namespace viscom {
         SetEnvironmentMap(nullptr);
     }
 
-    void MasterNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
+    void CoordinatorNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
     {
         namespace fs = std::filesystem;
 
@@ -258,8 +267,9 @@ namespace viscom {
 
         if (loadModel) {
             std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
-
             std::string line;
+            std::getline(params_in, line); // description line...
+
             std::size_t lineCounter = static_cast<std::size_t>(std::atoi(splitFilename[splitFilename.size() - 1].c_str())) + 2;
             float meshTheta, meshPhi;
 
@@ -268,10 +278,11 @@ namespace viscom {
 
             while (params_in.good()) {
                 std::getline(params_in, line);
-                if (--lineCounter != 0) continue;
-
                 auto splitParameters = utils::split(line, ',');
-                assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
+                if (splitParameters[0] != splitFilename[splitFilename.size() - 1]) continue;
+                // if (--lineCounter != 0) continue;
+
+                // assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
                 break;
@@ -282,7 +293,8 @@ namespace viscom {
             envMapFilename += ".hdr";
             auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
             SetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
-            SetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
+            SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
+            //SetMesh(GetMeshManager().GetResource("D:/Users/Sebastian Maisch/Documents/dev/deeplearning/ModelNet10/chair/train/chair_0009.off"), 0.0f, 0.0f);
 
         }
         else {
@@ -291,7 +303,7 @@ namespace viscom {
         }
     }
 
-    void MasterNode::LoadPointCloudAO(const std::string& pointCloud)
+    void CoordinatorNode::LoadPointCloudAO(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointAO> pointCloudData;
@@ -320,7 +332,7 @@ namespace viscom {
         LoadPointCloudGPUAO(pointCloudData);
     }
 
-    void MasterNode::LoadPointCloudMatte(const std::string& pointCloud)
+    void CoordinatorNode::LoadPointCloudMatte(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointMatte> pointCloudData;
@@ -359,7 +371,7 @@ namespace viscom {
         LoadPointCloudGPUMatte(pointCloudData);
     }
 
-    void MasterNode::LoadPointCloudSubsurface(const std::string& pointCloud)
+    void CoordinatorNode::LoadPointCloudSubsurface(const std::string& pointCloud)
     {
         std::ifstream pc_in(pointCloud);
         std::vector<PointCloudPointSubsurface> pointCloudData;
@@ -404,9 +416,9 @@ namespace viscom {
         LoadPointCloudGPUSubsurface(pointCloudData);
     }
 
-    bool MasterNode::KeyboardCallback(int key, int scancode, int action, int mods)
+    bool CoordinatorNode::KeyboardCallback(int key, int scancode, int action, int mods)
     {
-        if (ApplicationNodeBase::KeyboardCallback(key, scancode, action, mods)) return true;
+        if (ApplicationNodeImplementation::KeyboardCallback(key, scancode, action, mods)) return true;
 
         switch (key)
         {
