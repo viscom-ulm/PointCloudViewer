@@ -17,6 +17,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <filesystem>
 
 #include "Vertices.h"
 #include "enh/gfx/postprocessing/DepthOfField.h"
@@ -26,7 +27,7 @@
 #include "app/gfx/mesh/MeshRenderable.h"
 #include "app/Vertices.h"
 
-#include <Python.h>
+#include "python_fix.h"
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
@@ -98,6 +99,8 @@ namespace viscom {
         // bloom_ = std::make_unique<enh::BloomEffect>(this);
         // tm_ = std::make_unique<enh::FilmicTMOperator>(this);
 
+
+        {if (_import_array() < 0) { PyErr_Print(); PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import"); return; } }
         
         std::array<npy_intp, 2> dims = { 1000, 4 };
 
@@ -118,9 +121,21 @@ namespace viscom {
         auto pyArray = PyArray_SimpleNewFromData(2, dims.data(), NPY_FLOAT, test.data());
 
         using namespace std::string_literals;
-        auto programName = Resource::FindResourceLocation("python/test.py", &GetApplication()->GetFramework());
-        auto functionName = "mFunct"s;
-        auto pName = PyUnicode_DecodeFSDefault(programName.c_str());
+        auto programName = Resource::FindResourceLocation("python/ptcltest.py", &GetApplication()->GetFramework());
+        auto functionName = "test"s;
+
+        namespace fs = std::filesystem;
+        fs::path programPath(programName);
+        programPath = fs::absolute(programPath);
+
+        PyObject* sysPath = PySys_GetObject((char*)"path");
+        auto programPyPath = PyUnicode_DecodeFSDefault(programPath.parent_path().string().c_str());
+        PyList_Append(sysPath, programPyPath);
+        Py_DECREF(programPyPath);
+
+
+
+        auto pName = PyUnicode_DecodeFSDefault(programPath.stem().string().c_str());
         /* Error checking of pName left out */
 
         auto pModule = PyImport_Import(pName);

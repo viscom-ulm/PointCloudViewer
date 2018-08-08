@@ -18,7 +18,7 @@
 #include "app/CoordinatorNode.h"
 #include "app/WorkerNode.h"
 
-#include <Python.h>
+#include "python_fix.h"
 
 int main(int argc, char** argv)
 {

@@ -9,4 +9,6 @@ data/*/*.dat
 resources/shader/**/*.gen
 resources/**/*.viscombin
 doc/html/
+**/__pycache__/
+
 !resources/**/*.obj
