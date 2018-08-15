@@ -223,23 +223,7 @@ namespace viscom {
             });
         }
         else {
-            deferredFBO.DrawToFBO(deferredDrawIndices_, [this]() {
-            // fbo.DrawToFBO([this]() {
-                DrawMeshDeferred();
-            });
-
-
-            // fbo.DrawToFBO([this, batched]() {
-            //     DrawPointCloudPoints(batched);
-            // });
-
-            deferredFBO.DrawToFBO(distanceSumDrawIndices_, [this, &deferredFBO]() {
-                DrawPointCloudDistanceSum(deferredFBO);
-            });
-
-            fbo.DrawToFBO([this, &deferredFBO]() {
-                DrawPointCloudOnMesh(deferredFBO);
-            });
+            DrawMeshPointCloudPoints(fbo, deferredFBO);
         }
     }
 
@@ -287,6 +271,35 @@ namespace viscom {
 
         gl::glDisable(gl::GL_BLEND);
         gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
+    }
+
+    void ApplicationNodeImplementation::DrawMeshPointCloudPoints(const FrameBuffer& fbo, const FrameBuffer& deferredFBO)
+    {
+        deferredFBO.DrawToFBO(deferredDrawIndices_, [this]() {
+            // fbo.DrawToFBO([this]() {
+            DrawMeshDeferred();
+        });
+
+
+        // fbo.DrawToFBO([this, batched]() {
+        //     DrawPointCloudPoints(batched);
+        // });
+
+        deferredFBO.DrawToFBO(distanceSumDrawIndices_, [this, &deferredFBO]() {
+            DrawPointCloudDistanceSum(deferredFBO);
+        });
+
+        fbo.DrawToFBO([this, &deferredFBO]() {
+            DrawPointCloudOnMesh(deferredFBO);
+        });
+    }
+
+    void ApplicationNodeImplementation::DrawScreenPointCloud(const FrameBuffer & fbo, const FrameBuffer & deferredFBO, bool batched)
+    {
+        // Get position, normal, 'parameters'
+        deferredFBO.DrawToFBO(deferredDrawIndices_, [this]() {
+            DrawMeshDeferred();
+        });
     }
 
     void ApplicationNodeImplementation::DrawMeshDeferred()

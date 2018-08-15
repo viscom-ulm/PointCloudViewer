@@ -102,12 +102,14 @@ namespace viscom {
 
     private:
         void DrawPointCloudPoints(bool batched);
+        void DrawMeshPointCloudPoints(const FrameBuffer& fbo, const FrameBuffer& deferredFBO);
+        void DrawScreenPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched);
         void DrawMeshDeferred();
         void DrawPointCloudDistanceSum(const FrameBuffer& deferredFBO);
         void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
 
         float boundingSphereRadius_ = 0.0f;
-        float distancePower_ = 4.0f;
+        float distancePower_ = 2.0f;
         enh::ArcballCameraEnhanced camera_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
