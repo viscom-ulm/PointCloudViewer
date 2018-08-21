@@ -13,7 +13,10 @@ out vec4 color;
 void main()
 {
     vec4 n4 = texture(normalTexture, texCoord);
-    if (n4.a == 0.0) return;
+    if (n4.a == 0.0) {
+        color = vec4(0,0,0,0);
+        return;
+    }
 
     vec4 diWeightSum = texture(directIlluminationTexture, texCoord);
     float weightSum = diWeightSum.a;

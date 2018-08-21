@@ -24,6 +24,7 @@ void main()
     vec3 normal = normalize(n4.xyz);
     vec3 position = texture(positionTexture, texCoords).xyz;
 
+    // calculate Mahalanobis distance
     vec3 b = normalize(vec3(0, -1, -1));
     if (vtNormal.x <= vtNormal.y && vtNormal.x <= vtNormal.z) b = vec3(1, 0, 0);
     else if (vtNormal.y <= vtNormal.z) b = vec3(0, 1, 0);

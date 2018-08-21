@@ -31,9 +31,6 @@ namespace viscom {
         void RenderFileHeadless(const std::string& pointCloud, bool loadModel);
         void RenderFileHeadlessToFBO(const std::string& pointCloud, bool loadModel);
         void LoadPointCloud(const std::string& pointCloud, bool loadModel);
-        void LoadPointCloudAO(const std::string& pointCloud);
-        void LoadPointCloudMatte(const std::string& pointCloud);
-        void LoadPointCloudSubsurface(const std::string& pointCloud);
 
         /* Holds the input directory. */
         std::string inputDir_;
