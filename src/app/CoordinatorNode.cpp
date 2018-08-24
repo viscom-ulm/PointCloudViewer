@@ -13,6 +13,7 @@
 #include "enh/gfx/postprocessing/FilmicTMOperator.h"
 #include "enh/gfx/gl/GLTexture.h"
 #include "app/Renderer.h"
+#include "app/PointCloudContainer.h"
 
 #include "core/glfw.h"
 #include <glbinding/gl/gl.h>
@@ -54,7 +55,9 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
-                GetRenderer()->RenderGUI();
+                ImGui::InputFloat("Point Size", &GetPointSize(), 0.1f);
+                ImGui::Spacing();
+                RendererSelectionGUI();
 
                 ImGui::End();
             }
@@ -229,14 +232,14 @@ namespace viscom {
             gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
         });
 
-        GetRenderer()->DrawPointCloud(fbo, deferredFBO, true);
+        CurrentRendererDrawPointCloud(fbo, deferredFBO, true);
 
         auto out_filename = pointCloud.substr(0, pointCloud.size() - 3) + "png";
         enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
         enh::GLTexture::SaveTextureToFile(fbo.GetTextures()[0], texDesc, glm::uvec3(fbo.GetWidth(), fbo.GetHeight(), 1), out_filename);
 
-        GetRenderer()->SetMesh(nullptr, 0.0f, 0.0f);
-        GetRenderer()->SetEnvironmentMap(nullptr);
+        RenderersSetMesh(nullptr, 0.0f, 0.0f);
+        RenderersSetEnvironmentMap(nullptr);
     }
 
     void CoordinatorNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
@@ -245,15 +248,15 @@ namespace viscom {
 
         auto splitFilename = utils::split(fs::path(pointCloud).stem().string(), '_');
         if (splitFilename[0] == "parameters") return;
-        if (splitFilename[1] == "ao") SelectPointCloudRenderer(pcViewer::PCType::AO);
-        else if (splitFilename[1] == "matte") SelectPointCloudRenderer(pcViewer::PCType::MATTE);
-        else if (splitFilename[1] == "subsurface") SelectPointCloudRenderer(pcViewer::PCType::SUBSURFACE);
+        if (splitFilename[1] == "ao") SelectRenderers(pcViewer::PCType::AO);
+        else if (splitFilename[1] == "matte") SelectRenderers(pcViewer::PCType::MATTE);
+        else if (splitFilename[1] == "subsurface") SelectRenderers(pcViewer::PCType::SUBSURFACE);
         else {
             LOG(WARNING) << "Wrong file format selected.";
             throw std::invalid_argument("Wrong file format selected.");
         }
 
-        GetRenderer()->LoadPointCloud(pointCloud);
+        RenderersLoadPointCloud(splitFilename[1] + "_" + splitFilename[splitFilename.size() - 1], pointCloud);
 
         if (loadModel) {
             std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
@@ -281,16 +284,18 @@ namespace viscom {
             auto envMapFilename = inputDir_ + "/" + splitFilename[2];
             for (std::size_t i = 3; i < splitFilename.size() - 3; ++i) envMapFilename += "_" + splitFilename[i];
             envMapFilename += ".hdr";
-            auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
-            GetRenderer()->SetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
+            std::string shapeNetCorePath = "/ShapeNetCore.v2/";
+            while (!fs::exists(inputDir_ + shapeNetCorePath)) shapeNetCorePath = "/.." + shapeNetCorePath;
+            auto meshFilename = inputDir_ + shapeNetCorePath + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
+            RenderersSetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
             // SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
-            GetRenderer()->SetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
+            RenderersSetMesh(GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
             //SetMesh(GetMeshManager().GetResource("D:/Users/Sebastian Maisch/Documents/dev/deeplearning/ModelNet10/chair/train/chair_0009.off"), 0.0f, 0.0f);
 
         }
         else {
-            GetRenderer()->SetMesh(nullptr, 0.0f, 0.0f);
-            GetRenderer()->SetEnvironmentMap(nullptr);
+            RenderersSetMesh(nullptr, 0.0f, 0.0f);
+            RenderersSetEnvironmentMap(nullptr);
         }
     }
 

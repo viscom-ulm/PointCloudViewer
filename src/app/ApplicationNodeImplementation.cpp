@@ -27,9 +27,16 @@
 #include "app/gfx/mesh/MeshRenderable.h"
 #include "app/Vertices.h"
 #include "app/Renderer.h"
+#include "app/MeshContainer.h"
+#include "app/pointClouds/AOPointCloudContainer.h"
+#include "app/pointClouds/GIPointCloudContainer.h"
+#include "app/pointClouds/SSSPointCloudContainer.h"
 #include "app/pcRenderers/AOPointCloudRenderer.h"
 #include "app/pcRenderers/GIPointCloudRenderer.h"
 #include "app/pcRenderers/SSSPointCloudRenderer.h"
+#include "app/pcOnMeshRenderers/AOPCOnMeshRenderer.h"
+#include "app/pcOnMeshRenderers/GIPCOnMeshRenderer.h"
+#include "app/pcOnMeshRenderers/SSSPCOnMeshRenderer.h"
 
 #include "python_fix.h"
 
@@ -40,6 +47,7 @@ namespace viscom {
 
     ApplicationNodeImplementation::ApplicationNodeImplementation(ApplicationNodeInternal* appNode) :
         ApplicationNodeBase{ appNode },
+        baseRenderType_{ pcViewer::RenderType::POINTCLOUD },
         camera_(glm::vec3(0.0f, 0.0f, 5.0f), *GetCamera()),
         deferredFBODesc_{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // position
@@ -64,9 +72,21 @@ namespace viscom {
         deferredPositionIndices_ = { 0 };
         deferredNonPosIndices_ = { 1, 2, 3, 4 };
 
-        pointRenderers_[0] = std::make_unique<pcViewer::AOPointCloudRenderer>(this);
-        pointRenderers_[1] = std::make_unique<pcViewer::GIPointCloudRenderer>(this);
-        pointRenderers_[2] = std::make_unique<pcViewer::SSSPointCloudRenderer>(this);
+        renderers_[0][0] = std::make_unique<pcViewer::AOPointCloudRenderer>(this);
+        renderers_[0][1] = std::make_unique<pcViewer::AOPCOnMeshRenderer>(this);
+        // renderers_[0][2] = std::make_unique<pcViewer::AOMeshRenderer>(this);
+        renderers_[1][0] = std::make_unique<pcViewer::GIPointCloudRenderer>(this);
+        renderers_[1][1] = std::make_unique<pcViewer::GIPCOnMeshRenderer>(this);
+        // renderers_[1][2] = std::make_unique<pcViewer::GIMeshRenderer>(this);
+        renderers_[2][0] = std::make_unique<pcViewer::SSSPointCloudRenderer>(this);
+        renderers_[2][1] = std::make_unique<pcViewer::SSSPCOnMeshRenderer>(this);
+        // renderers_[2][2] = std::make_unique<pcViewer::SSSMeshRenderer>(this);
+
+        pointClouds_[0] = std::make_unique<pcViewer::AOPointCloudContainer>(this);
+        pointClouds_[1] = std::make_unique<pcViewer::GIPointCloudContainer>(this);
+        pointClouds_[2] = std::make_unique<pcViewer::SSSPointCloudContainer>(this);
+
+        mesh_ = std::make_unique<pcViewer::MeshContainer>(this);
 
 
         {if (_import_array() < 0) { PyErr_Print(); PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import"); return; } }
@@ -176,11 +196,67 @@ namespace viscom {
         });
     }
 
+    void ApplicationNodeImplementation::RendererSelectionGUI()
+    {
+        if (!currentRenderers_) return;
+        for (std::size_t i = 0; i < currentRenderers_->size(); ++i) {
+            auto& cR = (*currentRenderers_)[i];
+            if (!cR) continue;
+            if (cR->IsAvaialble() && ImGui::RadioButton(cR->GetRendererName().c_str(), i == static_cast<std::size_t>(baseRenderType_)))
+                baseRenderType_ = static_cast<pcViewer::RenderType>(i);
+        }
+
+        ImGui::Spacing();
+        (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->RenderGUI();
+    }
+
+    void ApplicationNodeImplementation::SelectRenderers(pcViewer::PCType type)
+    {
+        currentRenderers_ = &renderers_[static_cast<std::size_t>(type)];
+        for (auto& renderer : *currentRenderers_) {
+            if (!renderer) continue;
+            renderer->SetPointCloud(nullptr);
+            renderer->SetMesh(nullptr);
+        }
+        currentPointCloud_ = pointClouds_[static_cast<std::size_t>(type)].get();
+    }
+
+    void ApplicationNodeImplementation::RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud)
+    {
+        currentPointCloud_->LoadPointCloud(pointCloudName, pointCloud);
+        for (const auto& renderer : *currentRenderers_) {
+            if (!renderer) continue;
+            renderer->SetPointCloud(currentPointCloud_);
+        }
+    }
+
+    void ApplicationNodeImplementation::RenderersSetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi)
+    {
+        mesh_->SetMesh(mesh, theta, phi);
+        for (const auto& renderer : *currentRenderers_) {
+            if (!renderer) continue;
+            renderer->SetMesh(mesh_.get());
+        }
+    }
+
+    void ApplicationNodeImplementation::RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap)
+    {
+        for (const auto& renderer : *currentRenderers_) {
+            if (!renderer) continue;
+            renderer->SetEnvironmentMap(envMap);
+        }
+    }
+
+    void ApplicationNodeImplementation::CurrentRendererDrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const
+    {
+        (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DrawPointCloud(fbo, deferredFBO, batched);
+    }
+
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
-        if (!currentRenderer_) return;
+        if (!currentRenderers_) return;
         auto deferredFBO = SelectOffscreenBuffer(deferredFBOs_);
-        currentRenderer_->DrawPointCloud(fbo, *deferredFBO, false);
+        (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DrawPointCloud(fbo, *deferredFBO, false);
         // sceneFBO->DrawToFBO([this]() {
         // });
 
@@ -193,10 +269,16 @@ namespace viscom {
 
     void ApplicationNodeImplementation::CleanUp()
     {
-        currentRenderer_ = nullptr;
-        pointRenderers_[0] = nullptr;
-        pointRenderers_[1] = nullptr;
-        pointRenderers_[2] = nullptr;
+        currentRenderers_ = nullptr;
+        renderers_[0][0] = nullptr;
+        renderers_[0][1] = nullptr;
+        renderers_[0][2] = nullptr;
+        renderers_[1][0] = nullptr;
+        renderers_[1][1] = nullptr;
+        renderers_[1][2] = nullptr;
+        renderers_[2][0] = nullptr;
+        renderers_[2][1] = nullptr;
+        renderers_[2][2] = nullptr;
 
         // dof_ = nullptr;
         // tm_ = nullptr;

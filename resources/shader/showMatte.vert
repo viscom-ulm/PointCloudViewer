@@ -21,7 +21,7 @@ void main()
 
     vertPosition = position;
     vertNormal = normal;
-    if (renderType == 0) vertResult = 2.0f * globalIllumination;
+    if (renderType == 0) vertResult = globalIllumination;
     else if (renderType == 1) vertResult = albedo;
     else if (renderType == 2) vertResult = directIllumination;
 }

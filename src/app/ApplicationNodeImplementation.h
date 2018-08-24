@@ -19,8 +19,11 @@ namespace viscom::enh {
 }
 
 namespace pcViewer {
-    enum class PCType;
+    enum class RenderType : std::size_t;
+    enum class PCType : std::size_t;
     class BaseRenderer;
+    class BasePointCloudContainer;
+    class MeshContainer;
 }
 
 namespace viscom {
@@ -48,10 +51,13 @@ namespace viscom {
 
         float GetBoundingSphereRadius() const { return boundingSphereRadius_; }
         float GetDistancePower() const { return distancePower_; }
+        float GetPointSize() const { return pointSize_; }
         int GetMatteRenderType() const { return matteRenderType_; }
         int GetSubsurfaceRenderType() const { return subsurfaceRenderType_; }
+        int GetCompositeType() const { return compositeType_; }
         void SetMatteRenderType(int rt) { matteRenderType_ = rt; }
         void SetSubsurfaceRenderType(int rt) { subsurfaceRenderType_ = rt; }
+        void SetCompositeType(int ct) { compositeType_ = ct; }
         const std::vector<std::size_t>& GetDeferredDrawIndices() const { return deferredDrawIndices_; }
         const std::vector<std::size_t>& GetDistanceSumDrawIndices() const { return distanceSumDrawIndices_; }
 
@@ -65,11 +71,18 @@ namespace viscom {
         void AddToBoundingSphere(const glm::vec3& v) { boundingSphereRadius_ = glm::max(boundingSphereRadius_, glm::length(v)); }
 
     protected:
-        pcViewer::BaseRenderer* GetRenderer() const { return currentRenderer_; }
+        // pcViewer::BaseRenderer* GetRenderer() const { return currentRenderer_; }
 
         float& GetDistancePower() { return distancePower_; }
+        float& GetPointSize() { return pointSize_; }
 
-        void SelectPointCloudRenderer(pcViewer::PCType type) { currentRenderer_ = pointRenderers_[static_cast<std::size_t>(type)].get(); }
+        void SelectRenderers(pcViewer::PCType type);
+        void RendererSelectionGUI();
+
+        void RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud);
+        void RenderersSetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi);
+        void RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap);
+        void CurrentRendererDrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const;
 
         // enh::DepthOfField* GetDOF() { return dof_.get(); }
         // enh::FilmicTMOperator* GetToneMapping() { return tm_.get(); }
@@ -83,11 +96,16 @@ namespace viscom {
     private:
         float boundingSphereRadius_ = 0.0f;
         float distancePower_ = 2.0f;
+        float pointSize_ = 1.0f;
         enh::ArcballCameraEnhanced camera_;
 
-        pcViewer::BaseRenderer* currentRenderer_ = nullptr;
-        std::array<std::unique_ptr<pcViewer::BaseRenderer>, 3> pointRenderers_;
-        std::array<std::unique_ptr<pcViewer::BaseRenderer>, 3> meshRenderers_;
+        pcViewer::RenderType baseRenderType_;
+
+        std::unique_ptr<pcViewer::MeshContainer> mesh_;
+        std::array<std::unique_ptr<pcViewer::BasePointCloudContainer>, 3> pointClouds_;
+        pcViewer::BasePointCloudContainer* currentPointCloud_ = nullptr;
+        std::array<std::unique_ptr<pcViewer::BaseRenderer>, 3>* currentRenderers_ = nullptr;
+        std::array<std::array<std::unique_ptr<pcViewer::BaseRenderer>, 3>, 3> renderers_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
 
@@ -98,6 +116,7 @@ namespace viscom {
 
         int matteRenderType_ = 0;
         int subsurfaceRenderType_ = 0;
+        int compositeType_ = 0;
 
         FrameBufferDescriptor deferredFBODesc_;
         std::vector<FrameBuffer> deferredFBOs_;

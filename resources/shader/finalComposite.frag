@@ -7,8 +7,11 @@ uniform sampler2D directIlluminationTexture;
 uniform sampler2D globalIlluminationTexture;
 
 in vec2 texCoord;
+uniform int compositionType;
 
 out vec4 color;
+
+const float PI = 3.1415926535897932384626433832795;
 
 void main()
 {
@@ -28,5 +31,8 @@ void main()
 
     // vec3 L = materialColor * directIllumination + globalIllumination;
     vec3 L = globalIllumination;
-    color = vec4(L, 1.0);
+    if (compositionType == 0) L = globalIllumination;
+    else if (compositionType == 1) L = directIllumination * (materialColor / PI);
+    else if (compositionType == 2) L = (directIllumination + globalIllumination) * ( materialColor / PI);
+    color = vec4(0.7 * L, 1.0);
 }

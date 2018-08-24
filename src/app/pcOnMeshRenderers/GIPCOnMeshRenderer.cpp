@@ -1,12 +1,12 @@
 /**
- * @file   GIPointCloudRenderer.cpp
+ * @file   GIPCOnMeshRenderer.cpp
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2018.08.17
  *
  * @brief  Definition of the point cloud renderer for global illumination.
  */
 
-#include "GIPointCloudRenderer.h"
+#include "GIPCOnMeshRenderer.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "app/ApplicationNodeImplementation.h"
 #include "enh/gfx/env/EnvironmentMapRenderer.h"
@@ -15,33 +15,40 @@
 
 namespace pcViewer {
 
-    GIPointCloudRenderer::GIPointCloudRenderer(ApplicationNodeImplementation* appNode) :
-        PointCloudRenderer{ PCType::MATTE, appNode }
+    GIPCOnMeshRenderer::GIPCOnMeshRenderer(ApplicationNodeImplementation* appNode) :
+        PCOnMeshRenderer{ PCType::MATTE, appNode }
     {
-        matteProgram_ = GetApp()->GetGPUProgramManager().GetResource("matte", std::vector<std::string>{ "showMatte.vert", "showPCResult.frag" });
-        matteMVPLoc_ = matteProgram_->getUniformLocation("MVP");
-        matteRenderTypeLoc_ = matteProgram_->getUniformLocation("renderType");
-        matteBBRLoc_ = matteProgram_->getUniformLocation("bbRadius");
+        distanceSumMatteProgram_ = GetApp()->GetGPUProgramManager().GetResource("distanceSumMatte", std::vector<std::string>{ "distanceSumMatte.vert", "distanceSum.frag" });
+        distanceSumMatteUniformLocations_ = distanceSumMatteProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize", "renderType" });
     }
 
-    void GIPointCloudRenderer::DrawPointCloudPoints(const glm::mat4& MVP, const glm::vec3& camPos, bool batched)
+    void GIPCOnMeshRenderer::DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO)
     {
-        gl::glUseProgram(matteProgram_->getProgramId());
-        gl::glUniformMatrix4fv(matteMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
-        gl::glUniform1i(matteRenderTypeLoc_, GetApp()->GetMatteRenderType());
-        gl::glUniform1f(matteBBRLoc_, batched ? GetBoundingSphereRadius() / 2.f : GetBoundingSphereRadius());
-        gl::glUniform3fv(matteProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camPos));
+        gl::glUseProgram(distanceSumMatteProgram_->getProgramId());
+        gl::glUniformMatrix4fv(distanceSumMatteUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
+
+        gl::glActiveTexture(gl::GL_TEXTURE2);
+        gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[0]);
+        gl::glUniform1i(distanceSumMatteUniformLocations_[1], 2);
+
+        gl::glActiveTexture(gl::GL_TEXTURE3);
+        gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[1]);
+        gl::glUniform1i(distanceSumMatteUniformLocations_[2], 3);
+        gl::glUniform1f(distanceSumMatteUniformLocations_[3], GetDistancePower());
+        gl::glUniform1f(distanceSumMatteUniformLocations_[4], GetPointSize());
+        gl::glUniform1i(distanceSumMatteUniformLocations_[5], GetApp()->GetMatteRenderType());
+        gl::glUniform3fv(distanceSumMatteProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(GetApp()->GetCameraEnh().GetPosition()));
         gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(GetPointCloudSize()));
     }
 
-    void GIPointCloudRenderer::RenderGUIByType()
+    void GIPCOnMeshRenderer::RenderGUIByType()
     {
         if (ImGui::RadioButton("Global Illumination", GetApp()->GetMatteRenderType() == 0)) GetApp()->SetMatteRenderType(0);
         if (ImGui::RadioButton("Matte Albedo", GetApp()->GetMatteRenderType() == 1)) GetApp()->SetMatteRenderType(1);
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetMatteRenderType() == 2)) GetApp()->SetMatteRenderType(2);
     }
 
-    void GIPointCloudRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
+    void GIPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());

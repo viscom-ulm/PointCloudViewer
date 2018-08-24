@@ -8,20 +8,21 @@
 
 #pragma once
 
-#include "app/Renderer.h"
+#include "app/pcRenderers/PointCloudRenderer.h"
+
+namespace viscom {
+    class GPUProgram;
+}
 
 namespace pcViewer {
 
-    class GIPointCloudRenderer : public TBaseRenderer<PointCloudPointMatte>
+    class GIPointCloudRenderer : public  PointCloudRenderer
     {
     public:
         GIPointCloudRenderer(ApplicationNodeImplementation* appNode);
 
     protected:
-        virtual void StorePointInPointCloud(const std::vector<std::string>& pointData) override;
-        virtual void PreparePointCloudVAO() override;
         virtual void DrawPointCloudPoints(const glm::mat4& MVP, const glm::vec3& camPos, bool batched) override;
-        virtual void DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO) override;
         virtual void RenderGUIByType() override;
         virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const override;
 
@@ -33,10 +34,5 @@ namespace pcViewer {
         /** Holds the location of render type. */
         gl::GLint matteRenderTypeLoc_ = -1;
         gl::GLint matteBBRLoc_ = -1;
-
-        /** Holds the program for summation of distances. */
-        std::shared_ptr<GPUProgram> distanceSumMatteProgram_;
-        /** Holds the uniform bindings for summation of distances. */
-        std::vector<gl::GLint> distanceSumMatteUniformLocations_;
     };
 }

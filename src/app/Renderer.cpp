@@ -13,40 +13,29 @@
 #include "enh/gfx/env/EnvironmentMapRenderer.h"
 #include "app/camera/ArcballCameraEnhanced.h"
 #include "app/ApplicationNodeImplementation.h"
+#include "app/PointCloudContainer.h"
+#include "app/MeshContainer.h"
 #include <imgui.h>
 #include <fstream>
 
 namespace pcViewer {
 
 
-    BaseRenderer::BaseRenderer(PCType pcType, ApplicationNodeImplementation* appNode) :
-        pcType_{ pcType }, appNode_{ appNode }, deferredExportFBO_{ std::make_unique<FrameBuffer>(1920, 1080, appNode->GetDeferredFBODesc()) }
+    BaseRenderer::BaseRenderer(PCType pcType, const std::string& rendererName, ApplicationNodeImplementation* appNode) :
+        pcType_{ pcType }, rendererName_{ rendererName }, appNode_{ appNode }, deferredExportFBO_{ std::make_unique<FrameBuffer>(1920, 1080, appNode->GetDeferredFBODesc()) }
     {
-        deferredProgram_ = appNode->GetGPUProgramManager().GetResource("deferredMesh", std::vector<std::string>{ "deferredMesh.vert", "deferredMesh.frag" });
-        deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection" });
-
-        finalQuad_ = std::make_unique<FullscreenQuad>("finalComposite.frag", appNode_);
-        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture" });
-
         envMapRenderer_ = std::make_unique<enh::EnvironmentMapRenderer>(appNode_);
     }
 
-    void BaseRenderer::LoadPointCloud(const std::string & pointCloud)
+    void BaseRenderer::SetPointCloud(BasePointCloudContainer* pointCloud)
     {
-        std::ifstream pc_in(pointCloud);
-        ClearPointCloud();
-        GetApp()->ClearRadius();
-
-        std::string line;
-        while (pc_in.good()) {
-            std::getline(pc_in, line);
-
-            auto splitPointData = utils::split(line, ',');
-
-            StorePointInPointCloud(splitPointData);
+        if (!pointCloud) {
+            pointCloud_ = nullptr;
+            return;
         }
 
-        LoadPointCloudGPU();
+        if (pointCloud->GetPointCloudType() != pcType_) throw std::runtime_error("PointCloudType mismatch!");
+        pointCloud_ = pointCloud;
     }
 
     void BaseRenderer::DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
@@ -57,14 +46,7 @@ namespace pcViewer {
             });
         }
 
-        if (!renderModel_ || !mesh_) {
-            fbo.DrawToFBO([this, batched]() {
-                DrawPointCloudPointsInternal(batched);
-            });
-        }
-        else {
-            DrawMeshPointCloudPoints(fbo, deferredFBO);
-        }
+        DrawPointCloudInternal(fbo, deferredFBO, batched);
     }
 
     void BaseRenderer::ExportScreenPointCloud(std::ostream& screenPoints, std::ostream& meshPoints)
@@ -72,7 +54,7 @@ namespace pcViewer {
         GetApp()->ClearExportScreenPointCloud(GetDeferredExportFBO());
 
         GetDeferredExportFBO().DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
-            DrawMeshDeferred();
+            mesh_->DrawMeshDeferred();
         });
 
         ExportScreenPointCloudScreen(GetDeferredExportFBO(), screenPoints);
@@ -80,136 +62,22 @@ namespace pcViewer {
         gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
         gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
 
-        ExportScreenPointCloudMesh(meshPoints);
+        pointCloud_->ExportScreenPointCloudMesh(meshPoints);
     }
 
     void BaseRenderer::RenderGUI()
     {
-        if (HasMesh()) {
-            ImGui::Checkbox("Render Model", &renderModel_);
-        }
-
         RenderGUIByType();
 
+        if (ImGui::RadioButton("Pass through", GetApp()->GetCompositeType() == 0)) GetApp()->SetCompositeType(0);
+        if (ImGui::RadioButton("Direct Only", GetApp()->GetCompositeType() == 1)) GetApp()->SetCompositeType(1);
+        if (ImGui::RadioButton("Combine all", GetApp()->GetCompositeType() == 2)) GetApp()->SetCompositeType(2);
+
         if (ImGui::Button("Export Screen")) {
-            std::ofstream screenPoints{ "screen_export.txt" }, meshPoints{ "mesh_export.txt" };
+            std::ofstream screenPoints{ pointCloud_->GetPointCloudName() + "_screen_export.txt" }, meshPoints{ pointCloud_->GetPointCloudName() + "mesh_export.txt" };
         
             ExportScreenPointCloud(screenPoints, meshPoints);
         }
-    }
-
-    void BaseRenderer::DrawPointCloudPointsInternal(bool batched)
-    {
-        gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);
-        gl::glEnable(gl::GL_BLEND);
-        gl::glBlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
-
-        gl::glBindVertexArray(vaoPointCloud_);
-        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
-
-        glm::mat4 modelMatrix(1.0f);
-        auto MVP = appNode_->GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
-
-        DrawPointCloudPoints(MVP, appNode_->GetCameraEnh().GetPosition(), batched);
-
-        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
-        gl::glBindVertexArray(0);
-        gl::glUseProgram(0);
-
-
-        gl::glDisable(gl::GL_BLEND);
-        gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
-    }
-
-    void BaseRenderer::DrawMeshPointCloudPoints(const FrameBuffer& fbo, const FrameBuffer& deferredFBO)
-    {
-        deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
-            DrawMeshDeferred();
-        });
-
-        deferredFBO.DrawToFBO(GetApp()->GetDistanceSumDrawIndices(), [this, &deferredFBO]() {
-            DrawPointCloudDistanceSumInternal(deferredFBO);
-        });
-
-        fbo.DrawToFBO([this, &deferredFBO]() {
-            DrawPointCloudOnMesh(deferredFBO);
-        });
-    }
-
-    void BaseRenderer::DrawMeshDeferred()
-    {
-        auto VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
-
-        gl::glDisable(gl::GL_CULL_FACE);
-        glm::mat4 modelMatrix(10.f);
-        modelMatrix[3][3] = 1.f;
-        gl::glUseProgram(deferredProgram_->getProgramId());
-        gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
-        gl::glUniform3fv(deferredProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(appNode_->GetCameraEnh().GetPosition()));
-        meshRenderable_->Draw(meshModel_ * modelMatrix);
-
-        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
-        gl::glBindVertexArray(0);
-        gl::glUseProgram(0);
-
-        gl::glEnable(gl::GL_CULL_FACE);
-    }
-
-    void BaseRenderer::DrawPointCloudDistanceSumInternal(const FrameBuffer& deferredFBO)
-    {
-        gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);
-
-        gl::glBindVertexArray(vaoPointCloud_);
-        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, vboPointCloud_);
-
-        gl::glDisable(gl::GL_DEPTH_TEST);
-        gl::glDepthMask(gl::GL_FALSE);
-        gl::glEnable(gl::GL_BLEND);
-        gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
-        gl::glBlendFuncSeparate(gl::GL_ONE, gl::GL_ONE, gl::GL_ONE, gl::GL_ONE);
-
-        glm::mat4 modelMatrix(1.0f);
-        auto MVP = appNode_->GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
-        DrawPointCloudDistanceSum(MVP, deferredFBO);
-
-        gl::glDisable(gl::GL_BLEND);
-        gl::glDepthMask(gl::GL_TRUE);
-        gl::glEnable(gl::GL_DEPTH_TEST);
-
-        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
-        gl::glBindVertexArray(0);
-        gl::glUseProgram(0);
-
-        gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
-    }
-
-    void BaseRenderer::DrawPointCloudOnMesh(const FrameBuffer & deferredFBO)
-    {
-        gl::glUseProgram(finalQuad_->GetGPUProgram()->getProgramId());
-
-        for (int i = 0; i < 5; ++i) {
-            gl::glActiveTexture(gl::GL_TEXTURE0 + i);
-            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[i]);
-            gl::glUniform1i(finalUniformLocations_[i], i);
-        }
-
-        gl::glEnable(gl::GL_BLEND);
-        gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
-        gl::glBlendFuncSeparate(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA, gl::GL_ONE, gl::GL_ONE);
-        // gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
-        finalQuad_->Draw();
-
-        gl::glDisable(gl::GL_BLEND);
-        gl::glUseProgram(0);
-    }
-
-    void BaseRenderer::SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi)
-    {
-        mesh_ = std::move(mesh);
-        if (mesh_) meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
-
-        meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
-        meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     void BaseRenderer::SetEnvironmentMap(std::shared_ptr<Texture> envMap)
@@ -222,16 +90,6 @@ namespace pcViewer {
         gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
     }
 
-    void BaseRenderer::PreparePointCloudVAOInternal()
-    {
-        gl::glBindVertexArray(vaoPointCloud_);
-        PreparePointCloudVAO();
-        gl::glBindVertexArray(0);
-        gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
-
-        appNode_->GetCameraEnh().SetCameraPosition(appNode_->GetBoundingSphereRadius() * appNode_->GetCamera()->GetCentralPerspectiveMatrix()[1][1] * glm::normalize(appNode_->GetCameraEnh().GetPosition()));
-    }
-
     float BaseRenderer::GetBoundingSphereRadius() const
     {
         return appNode_->GetBoundingSphereRadius();
@@ -240,6 +98,11 @@ namespace pcViewer {
     float BaseRenderer::GetDistancePower() const
     {
         return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetDistancePower();
+    }
+
+    float BaseRenderer::GetPointSize() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetPointSize();
     }
 
     enh::BufferRAII BaseRenderer::CopyTextureToPixelBuffer3(const FrameBuffer & deferredFBO, std::size_t tex)
@@ -282,6 +145,11 @@ namespace pcViewer {
             memcpy(content.data(), gpuMem, content.size() * sizeof(glm::vec4));
             gl::glUnmapBuffer(gl::GL_PIXEL_PACK_BUFFER);
         }
+    }
+
+    std::size_t BaseRenderer::GetPointCloudSize() const
+    {
+        return pointCloud_->GetPointCloudSize();
     }
 
 }
