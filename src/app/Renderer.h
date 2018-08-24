@@ -68,6 +68,7 @@ namespace pcViewer {
         virtual void RenderGUIByType() = 0;
 
         virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const = 0;
+        virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const {}
 
         float GetBoundingSphereRadius() const;
         float GetDistancePower() const;

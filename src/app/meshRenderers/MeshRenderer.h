@@ -21,6 +21,10 @@ namespace pcViewer {
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
 
     private:
+        /** Holds the program for final rendering. */
+        std::unique_ptr<FullscreenQuad> finalQuad_;
+        /** Holds the uniform bindings for final rendering. */
+        std::vector<gl::GLint> finalUniformLocations_;
     };
 
 }

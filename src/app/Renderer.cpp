@@ -62,7 +62,8 @@ namespace pcViewer {
         gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
         gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
 
-        pointCloud_->ExportScreenPointCloudMesh(meshPoints);
+        if (pointCloud_) pointCloud_->ExportScreenPointCloudMesh(meshPoints);
+        else ExportScreenPointCloudMesh(meshPoints);
     }
 
     void BaseRenderer::RenderGUI()
