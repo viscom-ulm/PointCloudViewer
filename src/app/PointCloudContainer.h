@@ -79,6 +79,7 @@ namespace pcViewer {
         const enh::BufferRAII& GetVBO() const { return vboPointCloud_; }
         const enh::VertexArrayRAII& GetVAO() const { return vaoPointCloud_; }
 
+        virtual bool HasDirectLight() const = 0;
         virtual std::size_t GetPointCloudSize() const = 0;
         PCType GetPointCloudType() const { return pcType_; }
 

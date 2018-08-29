@@ -56,6 +56,11 @@ namespace viscom {
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
                 ImGui::InputFloat("Point Size", &GetPointSize(), 0.1f);
+                ImGui::ColorEdit3("SigmaT", reinterpret_cast<float*>(&GetSigmaT()));
+                ImGui::InputFloat("Eta", &GetEta());
+                ImGui::InputFloat3("Light Position", reinterpret_cast<float*>(&GetLightPosition()));
+                ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&GetLightColor()));
+                ImGui::InputFloat("Light Multiplicator", &GetLightMultiplicator());
                 ImGui::Spacing();
                 RendererSelectionGUI();
 
@@ -278,6 +283,20 @@ namespace viscom {
                 // assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
+                if (splitFilename[1] == "subsurface") {
+                    glm::vec3 sigmat;
+                    sigmat.r = static_cast<float>(std::atof(splitParameters[9].c_str()));
+                    sigmat.g = static_cast<float>(std::atof(splitParameters[10].c_str()));
+                    sigmat.b = static_cast<float>(std::atof(splitParameters[11].c_str()));
+                    float eta;
+                    eta = static_cast<float>(std::atof(splitParameters[12].c_str()));
+                    GetSigmaT() = sigmat;
+                    GetEta() = eta;
+                }
+                else {
+                    GetSigmaT() = glm::vec3(1.0f);
+                    GetEta() = 1.0f;
+                }
                 break;
             }
 

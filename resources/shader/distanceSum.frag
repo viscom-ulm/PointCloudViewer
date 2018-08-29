@@ -3,6 +3,7 @@
 uniform sampler2D positionTexture;
 uniform sampler2D normalTexture;
 uniform float distancePower = 1.0;
+uniform int outputDirectLight = 1;
 
 in vec3 vertPosition;
 in vec3 vertNormal;
@@ -43,9 +44,9 @@ void main()
     float dist = dot(vertDiff, cInvDiff);
 
     float weight = 1.0 / (pow(dist, distancePower) + 0.00000001);
-    directIllumination = vec4(weight * vertDirectIllumination, weight);
+    if (outputDirectLight == 1) directIllumination = vec4(weight * vertDirectIllumination, weight);
     // directIllumination = vec4(vertPosition, 1.0);
-    globalIllumination = vec4(weight * vertResult, 1.0);
+    globalIllumination = vec4(weight * vertResult, weight);
     // globalIllumination = vec4(position, 1.0);
 
     // directIllumination = vec4(weight * vertDirectIllumination, 1.0f);

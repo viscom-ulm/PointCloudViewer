@@ -35,7 +35,9 @@ namespace pcViewer {
         ~MeshContainer() = default;
 
         void SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi);
-        void DrawMeshDeferred() const;
+        void DrawMeshDeferred(bool doDirectLighting) const;
+        const std::vector<glm::vec3>& GetPositions() const;
+        const std::vector<glm::vec3>& GetNormals() const;
 
     private:
         /** Holds the mesh to render. */

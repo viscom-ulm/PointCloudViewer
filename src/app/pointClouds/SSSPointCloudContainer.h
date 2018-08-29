@@ -17,6 +17,8 @@ namespace pcViewer {
     public:
         SSSPointCloudContainer(ApplicationNodeImplementation* appNode) : TBasePointCloudContainer{ PCType::SUBSURFACE, appNode } {}
 
+        virtual bool HasDirectLight() const override { return true; }
+
     protected:
         virtual void PreparePointCloudVAO() override;
         virtual void StorePointInPointCloud(const std::vector<std::string>& pointData) override;

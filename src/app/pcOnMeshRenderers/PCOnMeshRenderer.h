@@ -26,6 +26,8 @@ namespace pcViewer {
         virtual void DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO) = 0;
         void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
 
+        virtual bool IsAmbientOcclustion() const { return false; }
+
     private:
         /** Holds the program for final rendering. */
         std::unique_ptr<FullscreenQuad> finalQuad_;

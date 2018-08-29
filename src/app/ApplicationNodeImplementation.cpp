@@ -37,6 +37,7 @@
 #include "app/pcOnMeshRenderers/AOPCOnMeshRenderer.h"
 #include "app/pcOnMeshRenderers/GIPCOnMeshRenderer.h"
 #include "app/pcOnMeshRenderers/SSSPCOnMeshRenderer.h"
+#include "app/meshRenderers/AOMeshRenderer.h"
 
 #include "python_fix.h"
 
@@ -67,14 +68,14 @@ namespace viscom {
         enh::ApplicationNodeBase::InitOpenGL();
         deferredFBOs_ = CreateOffscreenBuffers(deferredFBODesc_);
 
-        deferredDrawIndices_ = { 0, 1, 2 };
-        distanceSumDrawIndices_ = { 3, 4 };
+        deferredDrawIndices_ = { 0, 1, 2, 3, 4 };
+        distanceSumDrawIndices_ = { 4, 5 };
         deferredPositionIndices_ = { 0 };
-        deferredNonPosIndices_ = { 1, 2, 3, 4 };
+        deferredNonPosIndices_ = { 1, 2, 3, 4, 5 };
 
         renderers_[0][0] = std::make_unique<pcViewer::AOPointCloudRenderer>(this);
         renderers_[0][1] = std::make_unique<pcViewer::AOPCOnMeshRenderer>(this);
-        // renderers_[0][2] = std::make_unique<pcViewer::AOMeshRenderer>(this);
+        renderers_[0][2] = std::make_unique<pcViewer::AOMeshRenderer>(this);
         renderers_[1][0] = std::make_unique<pcViewer::GIPointCloudRenderer>(this);
         renderers_[1][1] = std::make_unique<pcViewer::GIPCOnMeshRenderer>(this);
         // renderers_[1][2] = std::make_unique<pcViewer::GIMeshRenderer>(this);

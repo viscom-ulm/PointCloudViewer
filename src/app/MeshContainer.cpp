@@ -19,7 +19,7 @@ namespace pcViewer {
         appNode_{ appNode }
     {
         deferredProgram_ = appNode->GetGPUProgramManager().GetResource("deferredMesh", std::vector<std::string>{ "deferredMesh.vert", "deferredMesh.frag" });
-        deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection" });
+        deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection", "camPos", "sigmat", "eta", "lightPos", "lightColor", "lightMultiplicator", "outputDirectLight" });
     }
 
     void MeshContainer::SetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi)
@@ -31,7 +31,7 @@ namespace pcViewer {
         meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
-    void MeshContainer::DrawMeshDeferred() const
+    void MeshContainer::DrawMeshDeferred(bool doDirectLighting) const
     {
         auto VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
 
@@ -40,7 +40,13 @@ namespace pcViewer {
         modelMatrix[3][3] = 1.f;
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
-        gl::glUniform3fv(deferredProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(appNode_->GetCameraEnh().GetPosition()));
+        gl::glUniform3fv(deferredUniformLocations_[1], 1, glm::value_ptr(appNode_->GetCameraEnh().GetPosition()));
+        gl::glUniform3fv(deferredUniformLocations_[2], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetSigmaT()));
+        gl::glUniform1f(deferredUniformLocations_[3], const_cast<const ApplicationNodeImplementation*>(appNode_)->GetEta());
+        gl::glUniform3fv(deferredUniformLocations_[4], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightPosition()));
+        gl::glUniform3fv(deferredUniformLocations_[5], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightColor()));
+        gl::glUniform1f(deferredUniformLocations_[6], const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightMultiplicator());
+        gl::glUniform1i(deferredUniformLocations_[7], doDirectLighting ? 1 : 0);
         meshRenderable_->Draw(meshModel_ * modelMatrix);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
@@ -48,5 +54,15 @@ namespace pcViewer {
         gl::glUseProgram(0);
 
         gl::glEnable(gl::GL_CULL_FACE);
+    }
+
+    const std::vector<glm::vec3>& MeshContainer::GetPositions() const
+    {
+        return mesh_->GetVertices();
+    }
+
+    const std::vector<glm::vec3>& MeshContainer::GetNormals() const
+    {
+        return mesh_->GetNormals();
     }
 }

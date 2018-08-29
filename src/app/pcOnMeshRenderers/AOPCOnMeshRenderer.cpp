@@ -18,7 +18,7 @@ namespace pcViewer {
         PCOnMeshRenderer{ PCType::AO, appNode }
     {
         distanceSumAOProgram_ = GetApp()->GetGPUProgramManager().GetResource("distanceSumAO", std::vector<std::string>{ "distanceSumAO.vert", "distanceSum.frag" });
-        distanceSumAOUniformLocations_ = distanceSumAOProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize" });
+        distanceSumAOUniformLocations_ = distanceSumAOProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize", "outputDirectLight" });
     }
 
     void AOPCOnMeshRenderer::DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO)
@@ -35,6 +35,7 @@ namespace pcViewer {
         gl::glUniform1i(distanceSumAOUniformLocations_[2], 3);
         gl::glUniform1f(distanceSumAOUniformLocations_[3], GetDistancePower());
         gl::glUniform1f(distanceSumAOUniformLocations_[4], GetPointSize());
+        gl::glUniform1i(distanceSumAOUniformLocations_[5], 0);
         gl::glUniform3fv(distanceSumAOProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(GetApp()->GetCameraEnh().GetPosition()));
         gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(GetPointCloudSize()));
     }

@@ -24,26 +24,33 @@ namespace pcViewer {
     MeshRenderer::MeshRenderer(PCType pcType, ApplicationNodeImplementation* appNode) :
         BaseRenderer{ pcType, "Mesh", appNode }
     {
-        finalQuad_ = std::make_unique<FullscreenQuad>("finalComposite.frag", GetApp());
-        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture", "compositionType" });
+        finalQuad_ = std::make_unique<FullscreenQuad>("finalMesh.frag", GetApp());
+        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "lightPos", "lightColor", "lightMultiplicator" });
+    }
+
+    bool MeshRenderer::IsAvaialble() const
+    {
+        return (GetMesh() != nullptr);
     }
 
     void MeshRenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
         deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
-            GetMesh()->DrawMeshDeferred();
+            GetMesh()->DrawMeshDeferred(false);
         });
 
         fbo.DrawToFBO([this, &deferredFBO]() {
             gl::glUseProgram(finalQuad_->GetGPUProgram()->getProgramId());
 
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < 3; ++i) {
                 gl::glActiveTexture(gl::GL_TEXTURE0 + i);
                 gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[i]);
                 gl::glUniform1i(finalUniformLocations_[i], i);
             }
 
-            gl::glUniform1i(finalUniformLocations_[5], GetApp()->GetCompositeType());
+            gl::glUniform3fv(finalUniformLocations_[3], 1, glm::value_ptr(GetLightPosition()));
+            gl::glUniform3fv(finalUniformLocations_[4], 1, glm::value_ptr(GetLightColor()));
+            gl::glUniform1f(finalUniformLocations_[5], GetLightMultiplicator());
 
             gl::glEnable(gl::GL_BLEND);
             gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);

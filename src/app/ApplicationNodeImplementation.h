@@ -52,6 +52,11 @@ namespace viscom {
         float GetBoundingSphereRadius() const { return boundingSphereRadius_; }
         float GetDistancePower() const { return distancePower_; }
         float GetPointSize() const { return pointSize_; }
+        const glm::vec3& GetLightPosition() const { return lightPos_; }
+        const glm::vec3& GetLightColor() const { return lightColor_; }
+        float GetLightMultiplicator() const { return lightMultiplicator_; }
+        const glm::vec3& GetSigmaT() const { return sigmaT_; }
+        float GetEta() const { return eta_; }
         int GetMatteRenderType() const { return matteRenderType_; }
         int GetSubsurfaceRenderType() const { return subsurfaceRenderType_; }
         int GetCompositeType() const { return compositeType_; }
@@ -75,6 +80,11 @@ namespace viscom {
 
         float& GetDistancePower() { return distancePower_; }
         float& GetPointSize() { return pointSize_; }
+        glm::vec3& GetLightPosition() { return lightPos_; }
+        glm::vec3& GetLightColor() { return lightColor_; }
+        float& GetLightMultiplicator() { return lightMultiplicator_; }
+        glm::vec3& GetSigmaT() { return sigmaT_; }
+        float& GetEta() { return eta_; }
 
         void SelectRenderers(pcViewer::PCType type);
         void RendererSelectionGUI();
@@ -97,6 +107,11 @@ namespace viscom {
         float boundingSphereRadius_ = 0.0f;
         float distancePower_ = 2.0f;
         float pointSize_ = 1.0f;
+        glm::vec3 sigmaT_ = glm::vec3{ 1.0f };
+        float eta_ = 1.0f;
+        glm::vec3 lightPos_ = glm::vec3{ 10.0f, 0.0f, 0.0f };
+        glm::vec3 lightColor_ = glm::vec3{ 1.0f };
+        float lightMultiplicator_ = 1.0f;
         enh::ArcballCameraEnhanced camera_;
 
         pcViewer::RenderType baseRenderType_;

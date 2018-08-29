@@ -17,6 +17,8 @@ namespace pcViewer {
     public:
         MeshRenderer(PCType pcType, ApplicationNodeImplementation* appNode);
 
+        virtual bool IsAvaialble() const override;
+
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
 

@@ -17,6 +17,8 @@ namespace pcViewer {
     public:
         GIPointCloudContainer(ApplicationNodeImplementation* appNode) : TBasePointCloudContainer{ PCType::MATTE, appNode } {}
 
+        virtual bool HasDirectLight() const override { return true; }
+
     protected:
         virtual void PreparePointCloudVAO() override;
         virtual void StorePointInPointCloud(const std::vector<std::string>& pointData) override;

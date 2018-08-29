@@ -73,6 +73,11 @@ namespace pcViewer {
         float GetBoundingSphereRadius() const;
         float GetDistancePower() const;
         float GetPointSize() const;
+        const glm::vec3& GetLightPosition() const;
+        const glm::vec3& GetLightColor() const;
+        float GetLightMultiplicator() const;
+        const glm::vec3& GetSigmaT() const;
+        float GetEta() const;
         ApplicationNodeImplementation* GetApp() { return appNode_; }
 
         const FrameBuffer& GetDeferredExportFBO() const { return *deferredExportFBO_; }

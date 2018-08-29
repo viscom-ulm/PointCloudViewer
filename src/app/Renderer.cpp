@@ -54,7 +54,8 @@ namespace pcViewer {
         GetApp()->ClearExportScreenPointCloud(GetDeferredExportFBO());
 
         GetDeferredExportFBO().DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
-            mesh_->DrawMeshDeferred();
+            if (pointCloud_ && pointCloud_->HasDirectLight()) mesh_->DrawMeshDeferred(false);
+            else mesh_->DrawMeshDeferred(true);
         });
 
         ExportScreenPointCloudScreen(GetDeferredExportFBO(), screenPoints);
@@ -104,6 +105,31 @@ namespace pcViewer {
     float BaseRenderer::GetPointSize() const
     {
         return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetPointSize();
+    }
+
+    const glm::vec3& BaseRenderer::GetLightPosition() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightPosition();
+    }
+
+    const glm::vec3& BaseRenderer::GetLightColor() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightColor();
+    }
+
+    float BaseRenderer::GetLightMultiplicator() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightMultiplicator();
+    }
+
+    const glm::vec3& BaseRenderer::GetSigmaT() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetSigmaT();
+    }
+
+    float BaseRenderer::GetEta() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetEta();
     }
 
     enh::BufferRAII BaseRenderer::CopyTextureToPixelBuffer3(const FrameBuffer & deferredFBO, std::size_t tex)

@@ -26,6 +26,8 @@ namespace pcViewer {
         virtual void RenderGUIByType() override;
         virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const override;
 
+        virtual bool IsAmbientOcclustion() const override { return true; }
+
     private:
         /** Holds the program for summation of distances. */
         std::shared_ptr<GPUProgram> distanceSumAOProgram_;

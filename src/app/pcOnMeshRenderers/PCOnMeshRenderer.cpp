@@ -25,7 +25,7 @@ namespace pcViewer {
         BaseRenderer{ pcType, "PointCloud on Mesh", appNode }
     {
         finalQuad_ = std::make_unique<FullscreenQuad>("finalComposite.frag", GetApp());
-        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture", "compositionType" });
+        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture", "compositionType", "isAmbientOcclusion" });
     }
 
     bool PCOnMeshRenderer::IsAvaialble() const
@@ -36,7 +36,8 @@ namespace pcViewer {
     void PCOnMeshRenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
         deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
-            GetMesh()->DrawMeshDeferred();
+            if (GetPointCloud() && GetPointCloud()->HasDirectLight()) GetMesh()->DrawMeshDeferred(false);
+            else GetMesh()->DrawMeshDeferred(true);
         });
 
         deferredFBO.DrawToFBO(GetApp()->GetDistanceSumDrawIndices(), [this, &deferredFBO]() {
@@ -80,13 +81,15 @@ namespace pcViewer {
     {
         gl::glUseProgram(finalQuad_->GetGPUProgram()->getProgramId());
 
+        std::array<std::size_t, 5> textureIndices{ 0, 1, 2, 4, 5 };
         for (int i = 0; i < 5; ++i) {
             gl::glActiveTexture(gl::GL_TEXTURE0 + i);
-            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[i]);
+            gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[textureIndices[i]]);
             gl::glUniform1i(finalUniformLocations_[i], i);
         }
 
         gl::glUniform1i(finalUniformLocations_[5], GetApp()->GetCompositeType());
+        gl::glUniform1i(finalUniformLocations_[6], IsAmbientOcclustion() ? 1 : 0);
 
         gl::glEnable(gl::GL_BLEND);
         gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
