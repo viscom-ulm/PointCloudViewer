@@ -1,9 +1,9 @@
 /**
- * @file   AOMeshRenderer.h
+ * @file   SSSMeshRenderer.h
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
- * @date   2018.08.27
+ * @date   2018.08.29
  *
- * @brief  Declaration of the mesh renderer for ambient occlusion.
+ * @brief  Declaration of the mesh renderer for subsurface scattering.
  */
 
 #pragma once
@@ -16,10 +16,10 @@ namespace viscom {
 
 namespace pcViewer {
 
-    class AOMeshRenderer : public MeshRenderer
+    class SSSMeshRenderer : public MeshRenderer
     {
     public:
-        AOMeshRenderer(ApplicationNodeImplementation* appNode);
+        SSSMeshRenderer(ApplicationNodeImplementation* appNode);
 
     protected:
         virtual void RenderGUIByType() override;

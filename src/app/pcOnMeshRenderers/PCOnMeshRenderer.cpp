@@ -22,7 +22,7 @@ namespace pcViewer {
 
 
     PCOnMeshRenderer::PCOnMeshRenderer(PCType pcType, ApplicationNodeImplementation* appNode) :
-        BaseRenderer{ pcType, "PointCloud on Mesh", appNode }
+        BaseRenderer{ pcType, RenderType::PC_ON_MESH, "PointCloud on Mesh", appNode }
     {
         finalQuad_ = std::make_unique<FullscreenQuad>("finalComposite.frag", GetApp());
         finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture", "compositionType", "isAmbientOcclusion" });
@@ -99,6 +99,19 @@ namespace pcViewer {
 
         gl::glDisable(gl::GL_BLEND);
         gl::glUseProgram(0);
+
+        // GetMesh()->DrawMeshDeferredAndExport(true);
+    }
+
+    void PCOnMeshRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    {
+        if (DoExportPointCloud()) GetPointCloud()->ExportScreenPointCloudMesh(meshPoints);
+        else {
+            using PointCloudPoint = PointCloudPointSubsurface;
+            auto& pointCloud = GetMesh()->GetExportedPointCloud();
+
+            std::copy(pointCloud.begin(), pointCloud.end(), std::ostream_iterator<PointCloudPoint>(meshPoints, "\n"));
+        }
     }
 
 }

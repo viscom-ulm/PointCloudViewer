@@ -15,7 +15,7 @@ namespace pcViewer {
 
 
     PointCloudRenderer::PointCloudRenderer(PCType pcType, ApplicationNodeImplementation* appNode) :
-        BaseRenderer{ pcType, "PointCloud", appNode }
+        BaseRenderer{ pcType, RenderType::POINTCLOUD, "PointCloud", appNode }
     {
     }
 
@@ -47,6 +47,11 @@ namespace pcViewer {
             gl::glDisable(gl::GL_BLEND);
             gl::glDisable(gl::GL_PROGRAM_POINT_SIZE);
         });
+    }
+
+    void PointCloudRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    {
+        GetPointCloud()->ExportScreenPointCloudMesh(meshPoints);
     }
 
 }

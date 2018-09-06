@@ -6,6 +6,8 @@ uniform sampler2D materialColorTexture;
 uniform vec3 lightPos = vec3(10.0, 0.0, 0.0);
 uniform vec3 lightColor = vec3(1.0, 1.0, 1.0);
 uniform float lightMultiplicator = 1.0;
+uniform int renderType = 0;
+uniform int compositionType = 0;
 
 in vec2 texCoord;
 
@@ -30,5 +32,17 @@ void main()
 
     float nDotL = clamp(dot(normal, light), 0.0, 1.0);
     vec3 C = (materialColor / PI) * nDotL * lightColor * lightMultiplicator;
-    color = vec4(C, 1.0);
+
+    vec3 gi = vec3(0.0);
+    if (renderType == 0) gi = vec3(0.0); // global illuminatiion
+    else if (renderType == 1) gi = materialColor; // albedo
+    else if (renderType == 2) gi = C; // direct illumination
+
+    vec3 L = gi;
+    if (compositionType == 0) L = gi; // pass through
+    else if (compositionType == 1) L = C * (materialColor / PI); // direct only
+    else if (compositionType == 2) L = (C + gi) * (materialColor / PI); // combine all
+    // else if (compositionType == 2 && isAmbientOcclusion == 0) L = (directIllumination + globalIllumination) * (materialColor / PI);
+    // else if (compositionType == 2 && isAmbientOcclusion == 1) L = (directIllumination * globalIllumination) * (materialColor / PI);
+    color = vec4(L, 1.0);
 }

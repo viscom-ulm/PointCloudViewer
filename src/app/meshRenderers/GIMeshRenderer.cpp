@@ -1,41 +1,37 @@
 /**
- * @file   AOPointCloudRenderer.cpp
+ * @file   GIMeshRenderer.cpp
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
- * @date   2018.08.17
+ * @date   2018.08.29
  *
- * @brief  Definition of the point cloud renderer for ambient occlusion.
+ * @brief  Definition of the mesh renderer for global illumination.
  */
 
-#include "AOPointCloudRenderer.h"
+#include "GIMeshRenderer.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "app/ApplicationNodeImplementation.h"
 #include "enh/gfx/env/EnvironmentMapRenderer.h"
 #include "app/PointCloudContainer.h"
+#include "app/MeshContainer.h"
+#include <imgui.h>
 
 namespace pcViewer {
 
-    AOPointCloudRenderer::AOPointCloudRenderer(ApplicationNodeImplementation* appNode) :
-        PointCloudRenderer{ PCType::AO, appNode }
+    GIMeshRenderer::GIMeshRenderer(ApplicationNodeImplementation* appNode) :
+        MeshRenderer{ PCType::MATTE, appNode }
     {
-        aoProgram_ = GetApp()->GetGPUProgramManager().GetResource("ao", std::vector<std::string>{ "showAO.vert", "showPCResult.frag" });
-        aoMVPLoc_ = aoProgram_->getUniformLocation("MVP");
-        aoBBRLoc_ = aoProgram_->getUniformLocation("bbRadius");
+        // meshExportShader_ = GetApp()->GetGPUProgramManager().GetResource("meshExportGI", std::vector<std::string>{ "meshExportGI.comp" });
+        // meshExportUniformLocations_ = meshExportShader_->GetUniformLocations({ "" });
+
     }
 
-    void AOPointCloudRenderer::DrawPointCloudPoints(const glm::mat4& MVP, const glm::vec3& camPos, bool batched)
+    void GIMeshRenderer::RenderGUIByType()
     {
-        gl::glUseProgram(aoProgram_->getProgramId());
-        gl::glUniformMatrix4fv(aoMVPLoc_, 1, gl::GL_FALSE, glm::value_ptr(MVP));
-        gl::glUniform1f(aoBBRLoc_, batched ? GetBoundingSphereRadius() / 2.f : GetBoundingSphereRadius());
-        gl::glUniform3fv(aoProgram_->getUniformLocation("camPos"), 1, glm::value_ptr(camPos));
-        gl::glDrawArrays(gl::GL_POINTS, 0, static_cast<gl::GLsizei>(GetPointCloudSize()));
+        if (ImGui::RadioButton("Global Illumination", GetApp()->GetMatteRenderType() == 0)) GetApp()->SetMatteRenderType(0);
+        if (ImGui::RadioButton("Matte Albedo", GetApp()->GetMatteRenderType() == 1)) GetApp()->SetMatteRenderType(1);
+        if (ImGui::RadioButton("Direct Illumination", GetApp()->GetMatteRenderType() == 2)) GetApp()->SetMatteRenderType(2);
     }
 
-    void AOPointCloudRenderer::RenderGUIByType()
-    {
-    }
-
-    void AOPointCloudRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
+    void GIMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());

@@ -6,6 +6,8 @@
  * @brief  Implementation of the global illumination point cloud.
  */
 
+#define GLM_SWIZZLE
+
 #include "GIPointCloudContainer.h"
 #include "app/ApplicationNodeImplementation.h"
 
@@ -35,7 +37,7 @@ namespace pcViewer {
         point.position_.x = static_cast<float>(std::atof(pointData[0].c_str()));
         point.position_.y = static_cast<float>(std::atof(pointData[1].c_str()));
         point.position_.z = static_cast<float>(std::atof(pointData[2].c_str()));
-        GetApp()->AddToBoundingSphere(point.position_);
+        GetApp()->AddToBoundingSphere(point.position_.xyz);
 
         point.normal_.x = static_cast<float>(std::atof(pointData[3].c_str()));
         point.normal_.y = static_cast<float>(std::atof(pointData[4].c_str()));

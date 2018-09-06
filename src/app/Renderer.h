@@ -36,7 +36,8 @@ namespace pcViewer {
     enum class RenderType : std::size_t {
         POINTCLOUD = 0,
         PC_ON_MESH = 1,
-        MESH = 2
+        MESH = 2,
+        SCREEN = 3
     };
 
     using namespace viscom;
@@ -44,13 +45,13 @@ namespace pcViewer {
     class BaseRenderer
     {
     public:
-        BaseRenderer(PCType pcType, const std::string& rendererName, ApplicationNodeImplementation* appNode);
+        BaseRenderer(PCType pcType, RenderType renderType, const std::string& rendererName, ApplicationNodeImplementation* appNode);
         virtual ~BaseRenderer() = default;
 
         void SetPointCloud(BasePointCloudContainer* pointCloud);
         void SetMesh(MeshContainer* mesh) { mesh_ = mesh; }
         void DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched);
-        void ExportScreenPointCloud(std::ostream& screenPoints, std::ostream& meshPoints);
+        void ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, std::ostream& info, std::ostream& screenPoints, std::ostream& meshPoints);
 
         void RenderGUI();
 
@@ -61,6 +62,8 @@ namespace pcViewer {
 
         virtual bool IsAvaialble() const = 0;
         const std::string& GetRendererName() const { return rendererName_; }
+        RenderType GetRendererType() const { return rendererType_; }
+        PCType GetPCType() const { return pcType_; }
 
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) = 0;
@@ -68,7 +71,7 @@ namespace pcViewer {
         virtual void RenderGUIByType() = 0;
 
         virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const = 0;
-        virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const {}
+        virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const = 0;
 
         float GetBoundingSphereRadius() const;
         float GetDistancePower() const;
@@ -80,31 +83,32 @@ namespace pcViewer {
         float GetEta() const;
         ApplicationNodeImplementation* GetApp() { return appNode_; }
 
-        const FrameBuffer& GetDeferredExportFBO() const { return *deferredExportFBO_; }
+        // const FrameBuffer& GetDeferredExportFBO() const { return *deferredExportFBO_; }
 
         static enh::BufferRAII CopyTextureToPixelBuffer3(const FrameBuffer& deferredFBO, std::size_t tex);
         static enh::BufferRAII CopyTextureToPixelBuffer4(const FrameBuffer& deferredFBO, std::size_t tex);
         static void CopyPBOToVector3(gl::GLuint pbo, std::vector<glm::vec3>& content);
         static void CopyPBOToVector4(gl::GLuint pbo, std::vector<glm::vec4>& content);
 
-        const MeshContainer* GetMesh() const { return mesh_; }
+        MeshContainer* GetMesh() const { return mesh_; }
         const BasePointCloudContainer* GetPointCloud() const { return pointCloud_; }
         std::size_t GetPointCloudSize() const;
+        bool DoExportPointCloud() const { return exportPointCloud; }
 
     private:
         PCType pcType_;
+        RenderType rendererType_;
         std::string rendererName_;
         /** Holds the point cloud container. */
-        BasePointCloudContainer* pointCloud_;
+        BasePointCloudContainer* pointCloud_ = nullptr;
         /** Holds the mesh container. */
-        MeshContainer* mesh_;
+        MeshContainer* mesh_ = nullptr;
+
+        bool exportPointCloud = false;
 
         /** Holds the background environment map. */
         std::shared_ptr<Texture> envMap_;
         std::unique_ptr<enh::EnvironmentMapRenderer> envMapRenderer_;
-
-        /** Deferred FBO for export. */
-        std::unique_ptr<FrameBuffer> deferredExportFBO_;
 
         ApplicationNodeImplementation* appNode_;
     };

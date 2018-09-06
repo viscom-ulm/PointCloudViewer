@@ -27,10 +27,13 @@ namespace viscom {
         static void SetSingleFile(const std::string& file) { singleFile_ = file; }
 
     private:
-        void RenderFolderHeadless(const std::string& folder, bool loadModel);
-        void RenderFileHeadless(const std::string& pointCloud, bool loadModel);
-        void RenderFileHeadlessToFBO(const std::string& pointCloud, bool loadModel);
-        void LoadPointCloud(const std::string& pointCloud, bool loadModel);
+        void RenderFolderHeadless(const std::string& folder, pcViewer::RenderType renderType);
+        void RenderFileHeadless(const std::string& pointCloud, pcViewer::RenderType renderType);
+        // void RenderFileHeadlessToFBO(const std::string& pointCloud, bool loadModel);
+        void LoadTextFile(const std::string& filename, bool loadModel);
+        void LoadPointCloud(const std::string& pointCloud, const std::vector<std::string>& splitFilename, bool loadModel);
+        void LoadMesh(pcViewer::PCType type, const std::string& meshname);
+        void LoadScreenTexture(const std::string& filename, const std::vector<std::string>& splitFilename);
 
         /* Holds the input directory. */
         std::string inputDir_;
@@ -56,5 +59,9 @@ namespace viscom {
         bool inputBatchMode_ = false;
 
         static std::string singleFile_;
+
+        std::unique_ptr<FrameBuffer> headlessFBO_;
+        std::unique_ptr<FrameBuffer> deferredHeadlessFBO_;
+        std::unique_ptr<FrameBuffer> deferredExportHeadlessFBO_;
     };
 }

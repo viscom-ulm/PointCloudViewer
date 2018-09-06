@@ -26,38 +26,30 @@ namespace pcViewer {
 
     void AOMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
     {
-        std::vector<glm::vec3> screenPositions, screenNormals;
+        std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
         screenNormals.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+        screenAlbedo.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+        screenDirectIllumination.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
 
         auto pboPos = CopyTextureToPixelBuffer3(fbo, 0);
         auto pboNormal = CopyTextureToPixelBuffer3(fbo, 1);
+        auto pboAlbedo = CopyTextureToPixelBuffer3(fbo, 2);
+        auto pboDirectIllumination = CopyTextureToPixelBuffer3(fbo, 4);
 
         gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
 
         CopyPBOToVector3(pboPos, screenPositions);
         CopyPBOToVector3(pboNormal, screenNormals);
+        CopyPBOToVector3(pboAlbedo, screenAlbedo);
+        CopyPBOToVector3(pboDirectIllumination, screenDirectIllumination);
 
         for (std::size_t i = 0; i < screenPositions.size(); ++i) {
             screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','
-                << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << '\n';
+                << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << ','
+                << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b << ','
+                << screenDirectIllumination[i].r << ',' << screenDirectIllumination[i].g << ',' << screenDirectIllumination[i].b << '\n';
         }
-    }
-
-    void AOMeshRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
-    {
-        using PointCloudPoint = PointCloudPointAO;
-        const auto& positions = GetMesh()->GetPositions();
-        const auto& normals = GetMesh()->GetNormals();
-
-        std::vector<PointCloudPoint> pointCloud(positions.size());
-
-        for (std::size_t i = 0; i < pointCloud.size(); ++i) {
-            pointCloud[i].position_ = positions[i];
-            pointCloud[i].normal_ = normals[i];
-        }
-
-        std::copy(pointCloud.begin(), pointCloud.end(), std::ostream_iterator<PointCloudPoint>(meshPoints, "\n"));
     }
 
 }

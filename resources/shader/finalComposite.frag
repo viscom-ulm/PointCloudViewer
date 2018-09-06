@@ -6,9 +6,9 @@ uniform sampler2D materialColorTexture;
 uniform sampler2D directIlluminationTexture;
 uniform sampler2D globalIlluminationTexture;
 uniform int isAmbientOcclusion = 0;
+uniform int compositionType;
 
 in vec2 texCoord;
-uniform int compositionType;
 
 out vec4 color;
 
@@ -39,5 +39,5 @@ void main()
     else if (compositionType == 2 && isAmbientOcclusion == 1) L = (directIllumination * globalIllumination) * (materialColor / PI);
     // TODO: if Ambient occlusion
     // L = (directIllumination * globalIllumination) * (materialColor / PI);
-    color = vec4(0.7 * L, 1.0);
+    color = vec4(L, 1.0);
 }

@@ -38,6 +38,8 @@
 #include "app/pcOnMeshRenderers/GIPCOnMeshRenderer.h"
 #include "app/pcOnMeshRenderers/SSSPCOnMeshRenderer.h"
 #include "app/meshRenderers/AOMeshRenderer.h"
+#include "app/meshRenderers/GIMeshRenderer.h"
+#include "app/meshRenderers/SSSMeshRenderer.h"
 
 #include "python_fix.h"
 
@@ -49,6 +51,8 @@ namespace viscom {
     ApplicationNodeImplementation::ApplicationNodeImplementation(ApplicationNodeInternal* appNode) :
         ApplicationNodeBase{ appNode },
         baseRenderType_{ pcViewer::RenderType::POINTCLOUD },
+        currentPointCloudType_{ pcViewer::PCType::AO },
+        screenRenderingComposition_{ 0 },
         camera_(glm::vec3(0.0f, 0.0f, 5.0f), *GetCamera()),
         deferredFBODesc_{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // position
@@ -66,7 +70,13 @@ namespace viscom {
     void ApplicationNodeImplementation::InitOpenGL()
     {
         enh::ApplicationNodeBase::InitOpenGL();
+
+        screenRenderQuad_ = std::make_unique<FullscreenQuad>("renderScreen.frag", this);
+        screenRenderUniformLocations_ = screenRenderQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture",
+            "lightPos", "lightColor", "lightMultiplicator", "camPos", "compositionType" });
+
         deferredFBOs_ = CreateOffscreenBuffers(deferredFBODesc_);
+        deferredExportFBO_ = std::make_unique<FrameBuffer>(deferredFBOs_[0].GetWidth(), deferredFBOs_[0].GetHeight(), deferredFBODesc_);
 
         deferredDrawIndices_ = { 0, 1, 2, 3, 4 };
         distanceSumDrawIndices_ = { 4, 5 };
@@ -78,10 +88,10 @@ namespace viscom {
         renderers_[0][2] = std::make_unique<pcViewer::AOMeshRenderer>(this);
         renderers_[1][0] = std::make_unique<pcViewer::GIPointCloudRenderer>(this);
         renderers_[1][1] = std::make_unique<pcViewer::GIPCOnMeshRenderer>(this);
-        // renderers_[1][2] = std::make_unique<pcViewer::GIMeshRenderer>(this);
+        renderers_[1][2] = std::make_unique<pcViewer::GIMeshRenderer>(this);
         renderers_[2][0] = std::make_unique<pcViewer::SSSPointCloudRenderer>(this);
         renderers_[2][1] = std::make_unique<pcViewer::SSSPCOnMeshRenderer>(this);
-        // renderers_[2][2] = std::make_unique<pcViewer::SSSMeshRenderer>(this);
+        renderers_[2][2] = std::make_unique<pcViewer::SSSMeshRenderer>(this);
 
         pointClouds_[0] = std::make_unique<pcViewer::AOPointCloudContainer>(this);
         pointClouds_[1] = std::make_unique<pcViewer::GIPointCloudContainer>(this);
@@ -199,20 +209,38 @@ namespace viscom {
 
     void ApplicationNodeImplementation::RendererSelectionGUI()
     {
-        if (!currentRenderers_) return;
-        for (std::size_t i = 0; i < currentRenderers_->size(); ++i) {
-            auto& cR = (*currentRenderers_)[i];
-            if (!cR) continue;
-            if (cR->IsAvaialble() && ImGui::RadioButton(cR->GetRendererName().c_str(), i == static_cast<std::size_t>(baseRenderType_)))
-                baseRenderType_ = static_cast<pcViewer::RenderType>(i);
+        if (baseRenderType_ == pcViewer::RenderType::SCREEN) {
+            if (ImGui::RadioButton("Results only", screenRenderingComposition_ == 0)) screenRenderingComposition_ = 0;
+            if (ImGui::RadioButton("Direct Illumination only", screenRenderingComposition_ == 1)) screenRenderingComposition_ = 1;
+            if (ImGui::RadioButton("Global + Direct Illumination", screenRenderingComposition_ == 2)) screenRenderingComposition_ = 2;
+            if (ImGui::RadioButton("Direct Illumination + AO", screenRenderingComposition_ == 3)) screenRenderingComposition_ = 3;
         }
+        else {
+            if (!currentRenderers_) return;
+            for (std::size_t i = 0; i < currentRenderers_->size(); ++i) {
+                auto& cR = (*currentRenderers_)[i];
+                if (!cR) continue;
+                if (cR->IsAvaialble() && ImGui::RadioButton(cR->GetRendererName().c_str(), i == static_cast<std::size_t>(baseRenderType_)))
+                    baseRenderType_ = static_cast<pcViewer::RenderType>(i);
+            }
 
-        ImGui::Spacing();
-        (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->RenderGUI();
+            ImGui::Spacing();
+            auto brt = static_cast<std::size_t>(baseRenderType_);
+            if (brt < 3) (*currentRenderers_)[brt]->RenderGUI();
+        }
+    }
+
+    void ApplicationNodeImplementation::SetBaseRenderType(pcViewer::RenderType type)
+    {
+        auto& cR = (*currentRenderers_)[static_cast<std::size_t>(type)];
+        if (!cR || !cR->IsAvaialble()) throw std::invalid_argument("Render type currently not available.");
+
+        baseRenderType_ = type;
     }
 
     void ApplicationNodeImplementation::SelectRenderers(pcViewer::PCType type)
     {
+        currentPointCloudType_ = type;
         currentRenderers_ = &renderers_[static_cast<std::size_t>(type)];
         for (auto& renderer : *currentRenderers_) {
             if (!renderer) continue;
@@ -231,9 +259,9 @@ namespace viscom {
         }
     }
 
-    void ApplicationNodeImplementation::RenderersSetMesh(std::shared_ptr<Mesh> mesh, float theta, float phi)
+    void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi)
     {
-        mesh_->SetMesh(mesh, theta, phi);
+        mesh_->SetMesh(meshName, mesh, theta, phi);
         for (const auto& renderer : *currentRenderers_) {
             if (!renderer) continue;
             renderer->SetMesh(mesh_.get());
@@ -253,11 +281,56 @@ namespace viscom {
         (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DrawPointCloud(fbo, deferredFBO, batched);
     }
 
+    void ApplicationNodeImplementation::DrawLoadedScreen(const FrameBuffer& fbo) const
+    {
+        fbo.DrawToFBO([this] {
+            gl::glUseProgram(screenRenderQuad_->GetGPUProgram()->getProgramId());
+
+            for (int i = 0; i < 5; ++i) {
+                gl::glActiveTexture(gl::GL_TEXTURE0 + i);
+                gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures_[i]);
+                gl::glUniform1i(screenRenderUniformLocations_[i], i);
+            }
+
+            gl::glUniform3fv(screenRenderUniformLocations_[5], 1, glm::value_ptr(lightPos_));
+            gl::glUniform3fv(screenRenderUniformLocations_[6], 1, glm::value_ptr(lightColor_));
+            gl::glUniform1f(screenRenderUniformLocations_[7], lightMultiplicator_);
+            gl::glUniform3fv(screenRenderUniformLocations_[8], 1, glm::value_ptr(camera_.GetPosition()));
+            gl::glUniform1i(screenRenderUniformLocations_[5], screenRenderingComposition_);
+            screenRenderQuad_->Draw();
+
+            gl::glUseProgram(0);
+        });
+    }
+
+    void ApplicationNodeImplementation::UpdateBaseRendererType()
+    {
+        for (const auto& renderer : *currentRenderers_) {
+            if (!renderer) continue;
+            if (renderer->IsAvaialble()) {
+                baseRenderType_ = renderer->GetRendererType();
+                return;
+            }
+        }
+        throw std::runtime_error("No renderer available.");
+    }
+
+    void ApplicationNodeImplementation::StartRenderScreen(enh::TexuturesRAII<5> textures)
+    {
+        baseRenderType_ = pcViewer::RenderType::SCREEN;
+        screenTextures_ = std::move(textures);
+    }
+
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
-        if (!currentRenderers_) return;
-        auto deferredFBO = SelectOffscreenBuffer(deferredFBOs_);
-        (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DrawPointCloud(fbo, *deferredFBO, false);
+        if (baseRenderType_ == pcViewer::RenderType::SCREEN) {
+            DrawLoadedScreen(fbo);
+        }
+        else {
+            if (!currentRenderers_) return;
+            auto deferredFBO = SelectOffscreenBuffer(deferredFBOs_);
+            (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DrawPointCloud(fbo, *deferredFBO, false);
+        }
         // sceneFBO->DrawToFBO([this]() {
         // });
 

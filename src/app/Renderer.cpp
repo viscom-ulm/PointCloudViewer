@@ -21,8 +21,8 @@
 namespace pcViewer {
 
 
-    BaseRenderer::BaseRenderer(PCType pcType, const std::string& rendererName, ApplicationNodeImplementation* appNode) :
-        pcType_{ pcType }, rendererName_{ rendererName }, appNode_{ appNode }, deferredExportFBO_{ std::make_unique<FrameBuffer>(1920, 1080, appNode->GetDeferredFBODesc()) }
+    BaseRenderer::BaseRenderer(PCType pcType, RenderType renderType, const std::string& rendererName, ApplicationNodeImplementation* appNode) :
+        pcType_{ pcType }, rendererType_{ renderType }, rendererName_{ rendererName }, appNode_{ appNode }
     {
         envMapRenderer_ = std::make_unique<enh::EnvironmentMapRenderer>(appNode_);
     }
@@ -49,22 +49,43 @@ namespace pcViewer {
         DrawPointCloudInternal(fbo, deferredFBO, batched);
     }
 
-    void BaseRenderer::ExportScreenPointCloud(std::ostream& screenPoints, std::ostream& meshPoints)
+    void BaseRenderer::ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, std::ostream& info, std::ostream& screenPoints, std::ostream& meshPoints)
     {
-        GetApp()->ClearExportScreenPointCloud(GetDeferredExportFBO());
+        GetApp()->ClearExportScreenPointCloud(deferredExportFBO);
 
-        GetDeferredExportFBO().DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
-            if (pointCloud_ && pointCloud_->HasDirectLight()) mesh_->DrawMeshDeferred(false);
-            else mesh_->DrawMeshDeferred(true);
+        deferredExportFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
+            // if (pointCloud_ && pointCloud_->HasDirectLight()) mesh_->DrawMeshDeferredAndExport(false);
+            // else mesh_->DrawMeshDeferredAndExport(true);
+            mesh_->DrawMeshDeferredAndExport(true);
         });
 
-        ExportScreenPointCloudScreen(GetDeferredExportFBO(), screenPoints);
+        ExportScreenPointCloudScreen(deferredExportFBO, screenPoints);
+
+        // camera position
+        auto camPos = appNode_->GetCamera()->GetPosition();
+        info << camPos.x << ',' << camPos.y << ',' << camPos.z << '\n';
+        // camera orientation
+        auto camOrient = appNode_->GetCamera()->GetOrientation();
+        info << camOrient.x << ',' << camOrient.y << ',' << camOrient.z << ',' << camOrient.w << '\n';
+        // environment map
+        if (!envMap_) info << '\n';
+        else info << envMap_->GetId();
+        // light position
+        auto lightPos = GetLightPosition();
+        info << lightPos.x << ',' << lightPos.y << ',' << lightPos.z << '\n';
+        // light color
+        auto lightColor = GetLightColor();
+        info << lightColor.x << ',' << lightColor.y << ',' << lightColor.z << '\n';
+        // light multiplicator
+        auto lightMultiplicator = GetLightMultiplicator();
+        info << lightMultiplicator;
+        // screen size
+        info << deferredExportFBO.GetWidth() << ',' << deferredExportFBO.GetHeight() << '\n';
 
         gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
         gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
 
-        if (pointCloud_) pointCloud_->ExportScreenPointCloudMesh(meshPoints);
-        else ExportScreenPointCloudMesh(meshPoints);
+        ExportScreenPointCloudMesh(meshPoints);
     }
 
     void BaseRenderer::RenderGUI()
@@ -75,16 +96,27 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Only", GetApp()->GetCompositeType() == 1)) GetApp()->SetCompositeType(1);
         if (ImGui::RadioButton("Combine all", GetApp()->GetCompositeType() == 2)) GetApp()->SetCompositeType(2);
 
-        if (ImGui::Button("Export Screen")) {
-            std::ofstream screenPoints{ pointCloud_->GetPointCloudName() + "_screen_export.txt" }, meshPoints{ pointCloud_->GetPointCloudName() + "mesh_export.txt" };
+        if (mesh_ && pointCloud_) {
+            ImGui::Spacing();
+
+            if (ImGui::RadioButton("Export Mesh", !exportPointCloud)) exportPointCloud = false;
+            if (ImGui::RadioButton("Export Pointcloud", exportPointCloud)) exportPointCloud = true;
+        }
+
+        if (mesh_ && ImGui::Button("Export Screen")) {
+            std::string namePrefix;
+            if (pointCloud_) namePrefix = pointCloud_->GetPointCloudName();
+            else namePrefix = mesh_->GetMeshName();
+            std::ofstream infoOut{ namePrefix + "_info.txt" }, screenPoints{ namePrefix + "_screen_export.txt" }, meshPoints{ namePrefix + "_mesh_export.txt" };
         
-            ExportScreenPointCloud(screenPoints, meshPoints);
+            ExportScreenPointCloud(appNode_->GetDeferredExportFBO(), infoOut, screenPoints, meshPoints);
         }
     }
 
     void BaseRenderer::SetEnvironmentMap(std::shared_ptr<Texture> envMap)
     {
         envMap_ = std::move(envMap);
+        if (!envMap_) return;
 
         gl::glBindTexture(gl::GL_TEXTURE_2D, envMap_->getTextureId());
         gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_S, gl::GL_REPEAT);

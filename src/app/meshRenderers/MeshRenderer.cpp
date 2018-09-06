@@ -22,10 +22,10 @@ namespace pcViewer {
 
 
     MeshRenderer::MeshRenderer(PCType pcType, ApplicationNodeImplementation* appNode) :
-        BaseRenderer{ pcType, "Mesh", appNode }
+        BaseRenderer{ pcType, RenderType::MESH, "Mesh", appNode }
     {
         finalQuad_ = std::make_unique<FullscreenQuad>("finalMesh.frag", GetApp());
-        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "lightPos", "lightColor", "lightMultiplicator" });
+        finalUniformLocations_ = finalQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "lightPos", "lightColor", "lightMultiplicator", "renderType", "compositeType" });
     }
 
     bool MeshRenderer::IsAvaialble() const
@@ -51,6 +51,10 @@ namespace pcViewer {
             gl::glUniform3fv(finalUniformLocations_[3], 1, glm::value_ptr(GetLightPosition()));
             gl::glUniform3fv(finalUniformLocations_[4], 1, glm::value_ptr(GetLightColor()));
             gl::glUniform1f(finalUniformLocations_[5], GetLightMultiplicator());
+            if (GetPCType() == PCType::AO) gl::glUniform1i(finalUniformLocations_[6], 1);
+            if (GetPCType() == PCType::MATTE) gl::glUniform1i(finalUniformLocations_[6], GetApp()->GetMatteRenderType());
+            if (GetPCType() == PCType::SUBSURFACE) gl::glUniform1i(finalUniformLocations_[6], GetApp()->GetSubsurfaceRenderType());
+            gl::glUniform1i(finalUniformLocations_[7], GetApp()->GetCompositeType());
 
             gl::glEnable(gl::GL_BLEND);
             gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
@@ -61,6 +65,14 @@ namespace pcViewer {
             gl::glDisable(gl::GL_BLEND);
             gl::glUseProgram(0);
         });
+    }
+
+    void MeshRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    {
+        using PointCloudPoint = PointCloudPointSubsurface;
+        auto& pointCloud = GetMesh()->GetExportedPointCloud();
+
+        std::copy(pointCloud.begin(), pointCloud.end(), std::ostream_iterator<PointCloudPoint>(meshPoints, "\n"));
     }
 
 }

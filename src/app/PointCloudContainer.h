@@ -11,6 +11,7 @@
 #include "enh/gfx/gl/OpenGLRAIIWrapper.h"
 
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <ostream>
 
 namespace viscom {
@@ -38,11 +39,11 @@ namespace pcViewer {
     }
 
     struct PointCloudPointMatte {
-        glm::vec3 position_;
-        glm::vec3 normal_;
-        glm::vec3 albedo_;
-        glm::vec3 directIllumination_;
-        glm::vec3 globalIllumination_;
+        glm::vec4 position_;
+        glm::vec4 normal_;
+        glm::vec4 albedo_;
+        glm::vec4 directIllumination_;
+        glm::vec4 globalIllumination_;
     };
 
     static std::ostream& operator <<(std::ostream& out, const PointCloudPointMatte& pcp) {
@@ -51,16 +52,17 @@ namespace pcViewer {
     }
 
     struct PointCloudPointSubsurface {
-        glm::vec3 position_;
-        glm::vec3 normal_;
-        glm::vec3 albedo_;
+        glm::vec4 position_;
+        glm::vec4 normal_;
+        glm::vec4 albedo_;
         glm::vec3 sigma_tp_;
         float eta_ = 1.33f;
-        glm::vec3 directIllumination_;
-        glm::vec3 globalIllumination_;
+        glm::vec4 directIllumination_;
+        glm::vec4 globalIllumination_;
     };
 
     static std::ostream& operator <<(std::ostream& out, const PointCloudPointSubsurface& pcp) {
+        if (pcp.position_.w == 0.0) return out;
         return out << pcp.position_.x << ',' << pcp.position_.y << ',' << pcp.position_.z << ',' << pcp.normal_.x << ',' << pcp.normal_.y << ',' << pcp.normal_.z
             << ',' << pcp.albedo_.r << ',' << pcp.albedo_.g << ',' << pcp.albedo_.b << ',' << pcp.sigma_tp_.r << ',' << pcp.sigma_tp_.g << ',' << pcp.sigma_tp_.b
             << ',' << pcp.eta_ << ',' << pcp.directIllumination_.r << ',' << pcp.directIllumination_.g << ',' << pcp.directIllumination_.b;

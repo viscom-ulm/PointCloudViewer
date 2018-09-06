@@ -76,9 +76,9 @@ namespace pcViewer {
 
         for (std::size_t i = 0; i < screenPositions.size(); ++i) {
             screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','
-                << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z
-                << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b
-                << screenScattering[i].r << ',' << screenScattering[i].g << ',' << screenScattering[i].b << ',' << screenScattering[i].a
+                << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << ','
+                << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b << ','
+                << screenScattering[i].r << ',' << screenScattering[i].g << ',' << screenScattering[i].b << ',' << screenScattering[i].a << ','
                 << screenDirectIllumination[i].r << ',' << screenDirectIllumination[i].g << ',' << screenDirectIllumination[i].b << '\n';
         }
     }

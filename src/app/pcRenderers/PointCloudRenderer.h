@@ -22,5 +22,8 @@ namespace pcViewer {
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
         virtual void DrawPointCloudPoints(const glm::mat4& MVP, const glm::vec3& camPos, bool batched) = 0;
+
+        virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const override;
+
     };
 }
