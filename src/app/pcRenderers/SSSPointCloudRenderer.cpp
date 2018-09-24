@@ -18,7 +18,7 @@ namespace pcViewer {
     SSSPointCloudRenderer::SSSPointCloudRenderer(ApplicationNodeImplementation* appNode) :
         PointCloudRenderer{ PCType::SUBSURFACE, appNode }
     {
-        subsurfaceProgram_ = GetApp()->GetGPUProgramManager().GetResource("subsurface", std::vector<std::string>{ "showSubsurface.vert", "showPCResult.frag" });
+        subsurfaceProgram_ = GetApp()->GetGPUProgramManager().GetResource("subsurface", std::vector<std::string>{ "showSubsurface.vert", "showPCResult.geom", "showPCResult.frag" });
         subsurfaceMVPLoc_ = subsurfaceProgram_->getUniformLocation("MVP");
         subsurfaceRenderTypeLoc_ = subsurfaceProgram_->getUniformLocation("renderType");
         subsurfaceBBRLoc_ = subsurfaceProgram_->getUniformLocation("bbRadius");
@@ -43,7 +43,7 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetSubsurfaceRenderType() == 4)) GetApp()->SetSubsurfaceRenderType(4);
     }
 
-    void SSSPointCloudRenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, std::ostream & screenPoints) const
+    void SSSPointCloudRenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string& namePrefix, std::ostream & screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         std::vector<glm::vec4> screenScattering;

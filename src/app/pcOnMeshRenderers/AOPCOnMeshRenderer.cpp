@@ -12,6 +12,9 @@
 #include "enh/gfx/env/EnvironmentMapRenderer.h"
 #include "app/PointCloudContainer.h"
 
+#define STBI_MSC_SECURE_CRT
+#include <stb_image_write.h>
+
 namespace pcViewer {
 
     AOPCOnMeshRenderer::AOPCOnMeshRenderer(ApplicationNodeImplementation* appNode) :
@@ -44,7 +47,7 @@ namespace pcViewer {
     {
     }
 
-    void AOPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
+    void AOPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
@@ -63,6 +66,8 @@ namespace pcViewer {
         CopyPBOToVector3(pboNormal, screenNormals);
         CopyPBOToVector3(pboAlbedo, screenAlbedo);
         CopyPBOToVector3(pboDirectIllumination, screenDirectIllumination);
+
+        stbi_write_hdr((namePrefix + "_pos.hdr").c_str(), fbo.GetWidth(), fbo.GetHeight(), 3, reinterpret_cast<float*>(screenNormals.data()));
 
         for (std::size_t i = 0; i < screenPositions.size(); ++i) {
             screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','

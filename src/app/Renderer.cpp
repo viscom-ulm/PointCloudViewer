@@ -17,6 +17,8 @@
 #include "app/MeshContainer.h"
 #include <imgui.h>
 #include <fstream>
+#include <regex>
+#include <filesystem>
 
 namespace pcViewer {
 
@@ -49,7 +51,77 @@ namespace pcViewer {
         DrawPointCloudInternal(fbo, deferredFBO, batched);
     }
 
-    void BaseRenderer::ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, std::ostream& info, std::ostream& screenPoints, std::ostream& meshPoints)
+    void BaseRenderer::ExportPBRT(const std::string& pbrtOutName, const glm::uvec2& imgSize, std::ostream& pbrt)
+    {
+        // auto camPos = appNode_->GetCamera()->GetPosition();
+        auto camPos = appNode_->GetCameraEnh().GetPosition();
+
+        std::stringstream cam_pos_str, cam_fov_str, model_theta_str, model_phi_str, light_pos_str, light_strength_str, img_size_x_str, img_size_y_str;
+        cam_pos_str << camPos.x << " " << camPos.y << " " << camPos.z;
+        model_theta_str << mesh_->GetTheta() * 180.f / glm::pi<float>();
+        model_phi_str << mesh_->GetPhi() * 180.f / glm::pi<float>();
+        light_pos_str << GetLightPosition().x << " " << GetLightPosition().y << " " << GetLightPosition().z;
+        auto lightStrength = GetLightColor() * GetLightMultiplicator();
+        light_strength_str << lightStrength.x << " " << lightStrength.y << " " << lightStrength.z;
+        img_size_x_str << imgSize.x;
+        img_size_y_str << imgSize.y;
+        cam_fov_str << 2.0f * glm::atan(1.0f / appNode_->GetCamera()->GetCentralPerspectiveMatrix()[1][1]) * 180.f / glm::pi<float>();
+
+
+        auto sigmasp = GetAlpha() * GetSigmaT();
+        auto sigmaa = GetSigmaT() * sigmasp;
+        std::stringstream matte_Kd_str, subsurface_sigmaa_str, subsurface_sigmasp_str, subsurface_eta_str;
+        matte_Kd_str << GetAlpha().r << " " << GetAlpha().g << " " << GetAlpha().b;
+        subsurface_sigmaa_str << sigmaa.r << " " << sigmaa.g << " " << sigmaa.b;
+        subsurface_sigmasp_str << sigmasp.r << " " << sigmasp.g << " " << sigmasp.b;
+        subsurface_eta_str << GetEta();
+
+        std::string matte_comment = "";
+        std::string subsurface_comment = "";
+        if (pcType_ == PCType::AO || pcType_ == PCType::MATTE) {
+            matte_comment = "";
+            subsurface_comment = "# ";
+        }
+        else if (pcType_ == PCType::SUBSURFACE) {
+            matte_comment = "# ";
+            subsurface_comment = "";
+        }
+
+        std::stringstream model_filename;
+        model_filename << std::quoted(std::filesystem::path(mesh_->GetMeshFilename()).lexically_normal().string());
+
+        std::string integrator_name = "path";
+        if (pcType_ == PCType::AO) integrator_name = "ambientocclusion";
+
+        std::ifstream pbrt_in(Resource::FindResourceLocation("basic.pbrt.in", appNode_->GetConfig()));
+
+        std::string line;
+        while (pbrt_in.good()) {
+            std::getline(pbrt_in, line);
+
+            line = std::regex_replace(line, std::regex(R"(\$\{INTEGRATOR_NAME\})"), integrator_name);
+            line = std::regex_replace(line, std::regex(R"(\$\{PBRT_FN\})"), pbrtOutName);
+            line = std::regex_replace(line, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{CAM_FOV\})"), cam_fov_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{MODEL_FN\})"), model_filename.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_POS\})"), light_pos_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_STRENGTH\})"), light_strength_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{MODEL_THETA\})"), model_theta_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{MODEL_PHI\})"), model_phi_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{MATTE_COMMENT\})"), matte_comment);
+            line = std::regex_replace(line, std::regex(R"(\$\{MATTE_KD\})"), matte_Kd_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{SUBSURFACE_COMMENT\})"), subsurface_comment);
+            line = std::regex_replace(line, std::regex(R"(\$\{SUBSURFACE_SIGMAA\})"), subsurface_sigmaa_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{SUBSURFACE_SIGMAPS\})"), subsurface_sigmasp_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{SUBSURFACE_ETA\})"), subsurface_eta_str.str());
+            pbrt << line << std::endl;
+        }
+    }
+
+    void BaseRenderer::ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, const std::string& namePrefix,
+        std::ostream& info, std::ostream& screenPoints, std::ostream& meshPoints)
     {
         GetApp()->ClearExportScreenPointCloud(deferredExportFBO);
 
@@ -59,7 +131,7 @@ namespace pcViewer {
             mesh_->DrawMeshDeferredAndExport(true);
         });
 
-        ExportScreenPointCloudScreen(deferredExportFBO, screenPoints);
+        ExportScreenPointCloudScreen(deferredExportFBO, namePrefix, screenPoints);
 
         // camera position
         auto camPos = appNode_->GetCamera()->GetPosition();
@@ -96,20 +168,22 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Only", GetApp()->GetCompositeType() == 1)) GetApp()->SetCompositeType(1);
         if (ImGui::RadioButton("Combine all", GetApp()->GetCompositeType() == 2)) GetApp()->SetCompositeType(2);
 
-        if (mesh_ && pointCloud_) {
+        if (*mesh_ && pointCloud_) {
             ImGui::Spacing();
 
             if (ImGui::RadioButton("Export Mesh", !exportPointCloud)) exportPointCloud = false;
             if (ImGui::RadioButton("Export Pointcloud", exportPointCloud)) exportPointCloud = true;
         }
 
-        if (mesh_ && ImGui::Button("Export Screen")) {
+        if (*mesh_ && ImGui::Button("Export Screen")) {
             std::string namePrefix;
             if (pointCloud_) namePrefix = pointCloud_->GetPointCloudName();
             else namePrefix = mesh_->GetMeshName();
             std::ofstream infoOut{ namePrefix + "_info.txt" }, screenPoints{ namePrefix + "_screen_export.txt" }, meshPoints{ namePrefix + "_mesh_export.txt" };
+            std::ofstream pbrtOut{ namePrefix + ".pbrt" };
         
-            ExportScreenPointCloud(appNode_->GetDeferredExportFBO(), infoOut, screenPoints, meshPoints);
+            ExportScreenPointCloud(appNode_->GetDeferredExportFBO(), namePrefix, infoOut, screenPoints, meshPoints);
+            ExportPBRT(namePrefix, glm::uvec2(appNode_->GetDeferredExportFBO().GetWidth(), appNode_->GetDeferredExportFBO().GetHeight()), pbrtOut);
         }
     }
 
@@ -152,6 +226,11 @@ namespace pcViewer {
     float BaseRenderer::GetLightMultiplicator() const
     {
         return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightMultiplicator();
+    }
+
+    const glm::vec3& BaseRenderer::GetAlpha() const
+    {
+        return const_cast<const ApplicationNodeImplementation*>(appNode_)->GetAlpha();
     }
 
     const glm::vec3& BaseRenderer::GetSigmaT() const

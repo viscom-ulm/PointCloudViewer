@@ -18,7 +18,6 @@ namespace viscom {
         explicit CoordinatorNode(ApplicationNodeInternal* appNode);
         virtual ~CoordinatorNode() override;
 
-        virtual void InitOpenGL() override;
         virtual void Draw2D(FrameBuffer& fbo) override;
         virtual bool KeyboardCallback(int key, int scancode, int action, int mods) override;
 
@@ -27,6 +26,8 @@ namespace viscom {
         static void SetSingleFile(const std::string& file) { singleFile_ = file; }
 
     private:
+        void InitOpenGLInternal();
+
         void RenderFolderHeadless(const std::string& folder, pcViewer::RenderType renderType);
         void RenderFileHeadless(const std::string& pointCloud, pcViewer::RenderType renderType);
         // void RenderFileHeadlessToFBO(const std::string& pointCloud, bool loadModel);

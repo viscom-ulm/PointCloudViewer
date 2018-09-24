@@ -24,7 +24,7 @@ namespace pcViewer {
     protected:
         virtual void DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO) override;
         virtual void RenderGUIByType() override;
-        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const override;
+        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
 
         virtual bool IsAmbientOcclustion() const override { return true; }
 

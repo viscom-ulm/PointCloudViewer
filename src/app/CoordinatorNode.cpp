@@ -31,14 +31,13 @@ namespace viscom {
         inputDir_{ std::filesystem::canonical(std::filesystem::path(".")).string() }
     {
         inputDirEntries_ = GetDirectoryContent(inputDir_, false);
+        InitOpenGLInternal();
     }
 
     CoordinatorNode::~CoordinatorNode() = default;
 
-    void CoordinatorNode::InitOpenGL()
+    void CoordinatorNode::InitOpenGLInternal()
     {
-        ApplicationNodeImplementation::InitOpenGL();
-
         constexpr unsigned int headless_width = 512;
         constexpr unsigned int headless_height = 512;
 
@@ -148,6 +147,7 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (inputBatchMode_ && ImGui::Begin("Select batch folder", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
+                ImGui::BeginChild("Scrolling", ImVec2(0.0f, -40.0f));
                 bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
                     std::error_code ec;
@@ -175,14 +175,15 @@ namespace viscom {
                         }
                     }
                 }
+                ImGui::EndChild();
 
-                if (ImGui::Button("Select Folder (PC)", ImVec2(50, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::POINTCLOUD);
+                if (ImGui::Button("Select (PC)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::POINTCLOUD);
                 ImGui::SameLine();
-                if (ImGui::Button("Select Folder (PConMesh)", ImVec2(50, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::PC_ON_MESH);
+                if (ImGui::Button("Select (PConMesh)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::PC_ON_MESH);
                 ImGui::SameLine();
-                if (ImGui::Button("Select Folder (Export)", ImVec2(50, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::MESH); // dont kill me because of this *duckandcover* [9/5/2018 Sebastian Maisch]
+                if (ImGui::Button("Select (Export)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::MESH); // dont kill me because of this *duckandcover* [9/5/2018 Sebastian Maisch]
                 ImGui::SameLine();
-                if (ImGui::Button("Select Folder (Screen)", ImVec2(50, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::SCREEN);
+                if (ImGui::Button("Select (Screen)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::SCREEN);
 
                 ImGui::End();
             }
@@ -227,12 +228,13 @@ namespace viscom {
         namespace fs = std::filesystem;
         auto splitFilename = utils::split(fs::path(pointCloud).stem().string(), '_');
         if (splitFilename[0] == "parameters") return;
+        if (splitFilename.size() < 2) return;
 
         bool render = false, renderScreen = false;
         if (splitFilename[1] == "ao" || splitFilename[1] == "matte" || splitFilename[1] == "subsurface") render = true;
         if (splitFilename.back() == "export" && splitFilename[splitFilename.size() - 2] != "screenfinal") renderScreen = true;
 
-        if (!render || !renderScreen) return;
+        if (!render && !renderScreen) return;
 
         try {
             if (renderType == pcViewer::RenderType::POINTCLOUD && render) LoadPointCloud(pointCloud, splitFilename, false);
@@ -253,7 +255,9 @@ namespace viscom {
         if (renderType == pcViewer::RenderType::MESH) {
             auto namePrefix = splitFilename[1] + '_' + splitFilename.back();
             std::ofstream infoOut{ namePrefix + "_info.txt" }, screenPoints{ namePrefix + "_screen_export.txt" }, meshPoints{ namePrefix + "_mesh_export.txt" };
-            GetCurrentRenderer()->ExportScreenPointCloud(GetDeferredExportFBO(), infoOut, screenPoints, meshPoints);
+            std::ofstream pbrtOut{ namePrefix + ".pbrt" };
+            GetCurrentRenderer()->ExportScreenPointCloud(*deferredExportHeadlessFBO_, namePrefix, infoOut, screenPoints, meshPoints);
+            GetCurrentRenderer()->ExportPBRT(namePrefix, glm::uvec2(deferredExportHeadlessFBO_->GetWidth(), deferredExportHeadlessFBO_->GetHeight()), pbrtOut);
         } else {
             headlessFBO_->DrawToFBO([this]() {
                 gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -280,6 +284,7 @@ namespace viscom {
 
             RenderersSetMesh("", nullptr, 0.0f, 0.0f);
             RenderersSetEnvironmentMap(nullptr);
+            UnselectCurrentRenderer();
         }
     }
 
@@ -328,6 +333,16 @@ namespace viscom {
                 // assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
+                if (splitFilename[1] != "ao") {
+                    glm::vec3 alpha;
+                    alpha.r = static_cast<float>(std::atof(splitParameters[6].c_str()));
+                    alpha.g = static_cast<float>(std::atof(splitParameters[7].c_str()));
+                    alpha.b = static_cast<float>(std::atof(splitParameters[8].c_str()));
+                    GetAlpha() = alpha;
+                }
+                else {
+                    GetAlpha() = glm::vec3(1.0f);
+                }
                 if (splitFilename[1] == "subsurface") {
                     glm::vec3 sigmat;
                     sigmat.r = static_cast<float>(std::atof(splitParameters[9].c_str()));

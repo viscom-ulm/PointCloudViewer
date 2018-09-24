@@ -51,7 +51,9 @@ namespace pcViewer {
         void SetPointCloud(BasePointCloudContainer* pointCloud);
         void SetMesh(MeshContainer* mesh) { mesh_ = mesh; }
         void DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched);
-        void ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, std::ostream& info, std::ostream& screenPoints, std::ostream& meshPoints);
+        void ExportPBRT(const std::string& pbrtOutName, const glm::uvec2& imgSize, std::ostream& pbrt);
+        void ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, const std::string& namePrefix, std::ostream& info,
+            std::ostream& screenPoints, std::ostream& meshPoints);
 
         void RenderGUI();
 
@@ -70,7 +72,7 @@ namespace pcViewer {
 
         virtual void RenderGUIByType() = 0;
 
-        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const = 0;
+        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const = 0;
         virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const = 0;
 
         float GetBoundingSphereRadius() const;
@@ -79,6 +81,7 @@ namespace pcViewer {
         const glm::vec3& GetLightPosition() const;
         const glm::vec3& GetLightColor() const;
         float GetLightMultiplicator() const;
+        const glm::vec3& GetAlpha() const;
         const glm::vec3& GetSigmaT() const;
         float GetEta() const;
         ApplicationNodeImplementation* GetApp() { return appNode_; }

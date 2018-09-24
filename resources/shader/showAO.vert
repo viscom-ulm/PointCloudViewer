@@ -7,16 +7,18 @@ layout(location = 2) in float ao;
 uniform mat4 MVP;
 uniform float bbRadius;
 
-out vec3 vertPosition;
-out vec3 vertNormal;
-out vec3 vertResult;
+out VS_OUT {
+    vec3 position;
+    vec3 normal;
+    vec3 result;
+} vs_out;
 
 void main()
 {
     gl_Position =  MVP * vec4(position, 1.0);
     gl_PointSize = bbRadius * 50.0f / gl_Position.w;
 
-    vertPosition = position;
-    vertNormal = normal;
-    vertResult = vec3(ao);
+    vs_out.position = position;
+    vs_out.normal = normal;
+    vs_out.result = vec3(ao);
 }

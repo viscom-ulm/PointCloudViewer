@@ -12,20 +12,22 @@ uniform mat4 MVP;
 uniform int renderType;
 uniform float bbRadius;
 
-out vec3 vertPosition;
-out vec3 vertNormal;
-out vec3 vertResult;
+out VS_OUT {
+    vec3 position;
+    vec3 normal;
+    vec3 result;
+} vs_out;
 
 void main()
 {
     gl_Position =  MVP * vec4(position, 1.0);
     gl_PointSize = bbRadius * 50.0f / gl_Position.w;
 
-    vertPosition = position;
-    vertNormal = normal;
-    if (renderType == 0) vertResult = globalIllumination;
-    else if (renderType == 1) vertResult = albedo;
-    else if (renderType == 2) vertResult = sigma_tp;
-    else if (renderType == 3) vertResult = vec3(eta);
-    else if (renderType == 4) vertResult = directIllumination;
+    vs_out.position = position;
+    vs_out.normal = normal;
+    if (renderType == 0) vs_out.result = globalIllumination;
+    else if (renderType == 1) vs_out.result = albedo;
+    else if (renderType == 2) vs_out.result = sigma_tp;
+    else if (renderType == 3) vs_out.result = vec3(eta);
+    else if (renderType == 4) vs_out.result = directIllumination;
 }

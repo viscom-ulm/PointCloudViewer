@@ -63,13 +63,17 @@ namespace viscom {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA32F) }, // global illumination
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } }, {} }
     {
+        InitOpenGLInternal();
     }
 
-    ApplicationNodeImplementation::~ApplicationNodeImplementation() = default;
-
-    void ApplicationNodeImplementation::InitOpenGL()
+    ApplicationNodeImplementation::~ApplicationNodeImplementation()
     {
-        enh::ApplicationNodeBase::InitOpenGL();
+        CleanUpInternal();
+    }
+
+    void ApplicationNodeImplementation::InitOpenGLInternal()
+    {
+        screenTexturesPtr_ = std::make_unique<enh::TexuturesRAII<5>>();
 
         screenRenderQuad_ = std::make_unique<FullscreenQuad>("renderScreen.frag", this);
         screenRenderUniformLocations_ = screenRenderQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "globalIlluminationTexture",
@@ -288,7 +292,7 @@ namespace viscom {
 
             for (int i = 0; i < 5; ++i) {
                 gl::glActiveTexture(gl::GL_TEXTURE0 + i);
-                gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures_[i]);
+                gl::glBindTexture(gl::GL_TEXTURE_2D, (*screenTexturesPtr_)[i]);
                 gl::glUniform1i(screenRenderUniformLocations_[i], i);
             }
 
@@ -318,7 +322,7 @@ namespace viscom {
     void ApplicationNodeImplementation::StartRenderScreen(enh::TexuturesRAII<5> textures)
     {
         baseRenderType_ = pcViewer::RenderType::SCREEN;
-        screenTextures_ = std::move(textures);
+        (*screenTexturesPtr_) = std::move(textures);
     }
 
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
@@ -341,7 +345,7 @@ namespace viscom {
         // fbo.DrawToFBO([this]() {});
     }
 
-    void ApplicationNodeImplementation::CleanUp()
+    void ApplicationNodeImplementation::CleanUpInternal()
     {
         currentRenderers_ = nullptr;
         renderers_[0][0] = nullptr;
@@ -359,8 +363,6 @@ namespace viscom {
         // bloom_ = nullptr;
         // sceneFBOs_.clear();
         deferredFBOs_.clear();
-
-        ApplicationNodeBase::CleanUp();
     }
 
     bool ApplicationNodeImplementation::MouseButtonCallback(int button, int action)

@@ -31,6 +31,8 @@ namespace viscom::enh {
 
         virtual void SetCameraPosition(const glm::vec3& position) override;
 
+        glm::mat4 GetViewPerspectiveExport() const;
+
     private:
         /** Holds the current camera position. */
         glm::vec3 baseCamPos_;

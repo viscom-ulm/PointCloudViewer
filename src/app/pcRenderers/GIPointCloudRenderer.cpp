@@ -18,7 +18,7 @@ namespace pcViewer {
     GIPointCloudRenderer::GIPointCloudRenderer(ApplicationNodeImplementation* appNode) :
         PointCloudRenderer{ PCType::MATTE, appNode }
     {
-        matteProgram_ = GetApp()->GetGPUProgramManager().GetResource("matte", std::vector<std::string>{ "showMatte.vert", "showPCResult.frag" });
+        matteProgram_ = GetApp()->GetGPUProgramManager().GetResource("matte", std::vector<std::string>{ "showMatte.vert", "showPCResult.geom", "showPCResult.frag" });
         matteMVPLoc_ = matteProgram_->getUniformLocation("MVP");
         matteRenderTypeLoc_ = matteProgram_->getUniformLocation("renderType");
         matteBBRLoc_ = matteProgram_->getUniformLocation("bbRadius");
@@ -41,7 +41,7 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetMatteRenderType() == 2)) GetApp()->SetMatteRenderType(2);
     }
 
-    void GIPointCloudRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
+    void GIPointCloudRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());

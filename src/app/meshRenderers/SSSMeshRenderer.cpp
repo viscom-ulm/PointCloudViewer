@@ -30,7 +30,7 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetSubsurfaceRenderType() == 4)) GetApp()->SetSubsurfaceRenderType(4);
     }
 
-    void SSSMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
+    void SSSMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         std::vector<glm::vec4> screenScattering;

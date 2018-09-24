@@ -39,11 +39,9 @@ namespace viscom {
         ApplicationNodeImplementation& operator=(ApplicationNodeImplementation&&) = delete;
         virtual ~ApplicationNodeImplementation() override;
 
-        virtual void InitOpenGL() override;
         virtual void UpdateFrame(double currentTime, double elapsedTime) override;
         virtual void ClearBuffer(FrameBuffer& fbo) override;
         virtual void DrawFrame(FrameBuffer& fbo) override;
-        virtual void CleanUp() override;
 
         virtual bool MouseButtonCallback(int button, int action) override;
         virtual bool MousePosCallback(double x, double y) override;
@@ -57,6 +55,7 @@ namespace viscom {
         const glm::vec3& GetLightColor() const { return lightColor_; }
         float GetLightMultiplicator() const { return lightMultiplicator_; }
         const glm::vec3& GetSigmaT() const { return sigmaT_; }
+        const glm::vec3& GetAlpha() const { return alpha_; }
         float GetEta() const { return eta_; }
         int GetMatteRenderType() const { return matteRenderType_; }
         int GetSubsurfaceRenderType() const { return subsurfaceRenderType_; }
@@ -76,8 +75,11 @@ namespace viscom {
         void ClearRadius() { boundingSphereRadius_ = 0.0f; }
         void AddToBoundingSphere(const glm::vec3& v) { boundingSphereRadius_ = glm::max(boundingSphereRadius_, glm::length(v)); }
         const FrameBuffer& GetDeferredExportFBO() const { return *deferredExportFBO_; }
+        const FWConfiguration* GetConfig() { return &ApplicationNodeBase::GetConfig(); }
 
     protected:
+        void InitOpenGLInternal();
+        void CleanUpInternal();
         // pcViewer::BaseRenderer* GetRenderer() const { return currentRenderer_; }
 
         float& GetDistancePower() { return distancePower_; }
@@ -85,10 +87,12 @@ namespace viscom {
         glm::vec3& GetLightPosition() { return lightPos_; }
         glm::vec3& GetLightColor() { return lightColor_; }
         float& GetLightMultiplicator() { return lightMultiplicator_; }
+        glm::vec3& GetAlpha() { return alpha_; }
         glm::vec3& GetSigmaT() { return sigmaT_; }
         float& GetEta() { return eta_; }
 
         void SelectRenderers(pcViewer::PCType type);
+        void UnselectCurrentRenderer() { currentRenderers_ = nullptr; };
         void RendererSelectionGUI();
         void SetBaseRenderType(pcViewer::RenderType type);
         void SetScreenRenderingComposition(int comp) { screenRenderingComposition_ = comp; }
@@ -115,7 +119,7 @@ namespace viscom {
         float boundingSphereRadius_ = 0.0f;
         float distancePower_ = 2.0f;
         float pointSize_ = 1.0f;
-        glm::vec3 sigmaT_ = glm::vec3{ 1.0f };
+        glm::vec3 alpha_ = glm::vec3{ 1.0f}, sigmaT_ = glm::vec3{ 1.0f };
         float eta_ = 1.0f;
         glm::vec3 lightPos_ = glm::vec3{ 10.0f, 0.0f, 0.0f };
         glm::vec3 lightColor_ = glm::vec3{ 1.0f };
@@ -124,7 +128,7 @@ namespace viscom {
         enh::ArcballCameraEnhanced camera_;
         int screenRenderingComposition_;
 
-        enh::TexuturesRAII<5> screenTextures_;
+        std::unique_ptr<enh::TexuturesRAII<5>> screenTexturesPtr_;
 
         pcViewer::RenderType baseRenderType_;
 

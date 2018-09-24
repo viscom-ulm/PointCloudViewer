@@ -36,14 +36,18 @@ namespace pcViewer {
         MeshContainer(ApplicationNodeImplementation* appNode);
         ~MeshContainer();
 
+        operator bool() const { return static_cast<bool>(mesh_); }
         void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi);
         void DrawMeshDeferred(bool doDirectLighting) const;
         void DrawMeshDeferredAndExport(bool doDirectLighting);
         const std::vector<glm::vec3>& GetPositions() const;
         const std::vector<glm::vec3>& GetNormals() const;
+        float GetTheta() const { return theta_; }
+        float GetPhi() const { return phi_; }
 
         const std::vector<PointCloudPointSubsurface>& GetExportedPointCloud() const { return transformedPointCloud_; }
         const std::string& GetMeshName() const { return meshName_; }
+        const std::string& GetMeshFilename() const;
 
     private:
         void DrawMeshDeferred(bool doDirectLighting, bool doExport) const;
@@ -55,6 +59,8 @@ namespace pcViewer {
         std::unique_ptr<enh::MeshRenderable> meshRenderable_;
         /** The meshes model matrix. */
         glm::mat4 meshModel_;
+
+        float theta_ = 0.0f, phi_ = 0.0f;
 
         std::vector<PointCloudPointSubsurface> transformedPointCloud_;
 

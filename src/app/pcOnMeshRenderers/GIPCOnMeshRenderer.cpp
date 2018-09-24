@@ -48,7 +48,7 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetMatteRenderType() == 2)) GetApp()->SetMatteRenderType(2);
     }
 
-    void GIPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const
+    void GIPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
     {
         std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
         screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());

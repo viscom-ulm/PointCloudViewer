@@ -78,6 +78,24 @@ namespace viscom::enh {
         CameraBase::SetCameraPosition(position - GetUserPosition());
     }
 
+    glm::mat4 ArcballCameraEnhanced::GetViewPerspectiveExport() const
+    {
+        auto projection = glm::perspective(2.0f * glm::atan(1.0f / cameraHelper_.GetCentralPerspectiveMatrix()[1][1]), 1.0f, cameraHelper_.GetNearPlane(), cameraHelper_.GetFarPlane());
+        auto userView = glm::lookAt(cameraHelper_.GetUserPosition(), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+
+        //4. transform user back to original position
+        glm::mat4 result = glm::translate(glm::mat4(1.0f), cameraHelper_.GetUserPosition());
+        //3. apply view rotation
+        result *= glm::mat4_cast(cameraHelper_.GetOrientation());
+        //2. apply navigation translation
+        result *= glm::translate(glm::mat4(1.0f), -cameraHelper_.GetPosition());
+        //1. transform user to coordinate system origin
+        result *= glm::translate(glm::mat4(1.0f), -cameraHelper_.GetUserPosition());
+
+        return projection * userView * result;
+    }
+
     glm::vec3 ArcballCameraEnhanced::GetPosition() const noexcept
     {
         return CameraBase::GetPosition() + GetUserPosition();

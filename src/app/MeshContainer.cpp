@@ -34,10 +34,18 @@ namespace pcViewer {
     {
         meshName_ = meshName;
         mesh_ = std::move(mesh);
-        if (mesh_) meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
-
+        theta_ = theta;
+        phi_ = phi;
         meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
         meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        if (!mesh_) {
+            meshRenderable_ = nullptr;
+            transformedPointCloud_.clear();
+            return;
+        }
+
+        meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
 
         transformedPointCloud_.resize(mesh_->GetVertices().size());
         pointCloudOutputSSBO_->GetBuffer()->InitializeData(transformedPointCloud_);
@@ -48,9 +56,19 @@ namespace pcViewer {
         DrawMeshDeferred(doDirectLighting, false);
     }
 
+    const std::string& MeshContainer::GetMeshFilename() const
+    {
+        return mesh_->GetId();
+    }
+
     void MeshContainer::DrawMeshDeferred(bool doDirectLighting, bool doExport) const
     {
-        auto VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
+        auto VP = doExport ? appNode_->GetCameraEnh().GetViewPerspectiveExport() : appNode_->GetCamera()->GetViewPerspectiveMatrix();
+
+        auto VPE = appNode_->GetCameraEnh().GetViewPerspectiveExport();
+        auto VPNE = appNode_->GetCamera()->GetViewPerspectiveMatrix();
+
+        // VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
 
         gl::glDisable(gl::GL_CULL_FACE);
         glm::mat4 modelMatrix(10.f);

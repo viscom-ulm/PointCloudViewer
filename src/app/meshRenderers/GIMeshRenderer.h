@@ -23,7 +23,7 @@ namespace pcViewer {
 
     protected:
         virtual void RenderGUIByType() override;
-        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, std::ostream& screenPoints) const override;
+        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
 
     private:
         /** Holds the shader to calculate mesh. */
