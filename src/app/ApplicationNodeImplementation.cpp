@@ -40,6 +40,7 @@
 #include "app/meshRenderers/AOMeshRenderer.h"
 #include "app/meshRenderers/GIMeshRenderer.h"
 #include "app/meshRenderers/SSSMeshRenderer.h"
+#include "app/comparison/HBAORenderer.h"
 
 #include "python_fix.h"
 
@@ -90,12 +91,17 @@ namespace viscom {
         renderers_[0][0] = std::make_unique<pcViewer::AOPointCloudRenderer>(this);
         renderers_[0][1] = std::make_unique<pcViewer::AOPCOnMeshRenderer>(this);
         renderers_[0][2] = std::make_unique<pcViewer::AOMeshRenderer>(this);
+        renderers_[0][3] = std::make_unique<pcViewer::HBAORenderer>(this);
+
         renderers_[1][0] = std::make_unique<pcViewer::GIPointCloudRenderer>(this);
         renderers_[1][1] = std::make_unique<pcViewer::GIPCOnMeshRenderer>(this);
         renderers_[1][2] = std::make_unique<pcViewer::GIMeshRenderer>(this);
+        renderers_[1][3] = std::make_unique<pcViewer::HBAORenderer>(this);
+
         renderers_[2][0] = std::make_unique<pcViewer::SSSPointCloudRenderer>(this);
         renderers_[2][1] = std::make_unique<pcViewer::SSSPCOnMeshRenderer>(this);
         renderers_[2][2] = std::make_unique<pcViewer::SSSMeshRenderer>(this);
+        renderers_[2][3] = std::make_unique<pcViewer::HBAORenderer>(this);
 
         pointClouds_[0] = std::make_unique<pcViewer::AOPointCloudContainer>(this);
         pointClouds_[1] = std::make_unique<pcViewer::GIPointCloudContainer>(this);
@@ -263,9 +269,9 @@ namespace viscom {
         }
     }
 
-    void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi)
+    void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale)
     {
-        mesh_->SetMesh(meshName, mesh, theta, phi);
+        mesh_->SetMesh(meshName, mesh, theta, phi, doRescale);
         for (const auto& renderer : *currentRenderers_) {
             if (!renderer) continue;
             renderer->SetMesh(mesh_.get());

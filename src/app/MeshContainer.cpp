@@ -30,7 +30,7 @@ namespace pcViewer {
 
     MeshContainer::~MeshContainer() = default;
 
-    void MeshContainer::SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi)
+    void MeshContainer::SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale)
     {
         meshName_ = meshName;
         mesh_ = std::move(mesh);
@@ -38,6 +38,7 @@ namespace pcViewer {
         phi_ = phi;
         meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
         meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
+        if (doRescale) rescale_ = 10.0f;
 
         if (!mesh_) {
             meshRenderable_ = nullptr;
@@ -71,7 +72,7 @@ namespace pcViewer {
         // VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
 
         gl::glDisable(gl::GL_CULL_FACE);
-        glm::mat4 modelMatrix(10.f);
+        glm::mat4 modelMatrix(rescale_);
         modelMatrix[3][3] = 1.f;
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));

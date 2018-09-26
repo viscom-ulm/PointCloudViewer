@@ -42,7 +42,7 @@ namespace viscom::enh {
 
         auto radius = glm::length(glm::dvec3(GetPosition()));
         radius -= static_cast<double>(mouseWheelDelta_) * mouseWheelSpeed * elapsedTime;
-        radius = glm::clamp(radius, 0.01, 20.0);
+        radius = glm::clamp(radius, 0.01, 200.0);
         mouseWheelDelta_ = 0.0f;
 
         auto camOrient = glm::inverse(glm::dquat(GetOrientation()));

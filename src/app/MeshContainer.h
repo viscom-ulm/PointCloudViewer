@@ -37,7 +37,7 @@ namespace pcViewer {
         ~MeshContainer();
 
         operator bool() const { return static_cast<bool>(mesh_); }
-        void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi);
+        void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale);
         void DrawMeshDeferred(bool doDirectLighting) const;
         void DrawMeshDeferredAndExport(bool doDirectLighting);
         const std::vector<glm::vec3>& GetPositions() const;
@@ -60,7 +60,7 @@ namespace pcViewer {
         /** The meshes model matrix. */
         glm::mat4 meshModel_;
 
-        float theta_ = 0.0f, phi_ = 0.0f;
+        float theta_ = 0.0f, phi_ = 0.0f, rescale_ = 1.0f;
 
         std::vector<PointCloudPointSubsurface> transformedPointCloud_;
 

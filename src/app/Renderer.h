@@ -37,7 +37,8 @@ namespace pcViewer {
         POINTCLOUD = 0,
         PC_ON_MESH = 1,
         MESH = 2,
-        SCREEN = 3
+        RTGT = 3,
+        SCREEN = 4,
     };
 
     using namespace viscom;

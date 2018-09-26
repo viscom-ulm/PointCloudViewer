@@ -282,7 +282,7 @@ namespace viscom {
             enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
             enh::GLTexture::SaveTextureToFile(headlessFBO_->GetTextures()[0], texDesc, glm::uvec3(headlessFBO_->GetWidth(), headlessFBO_->GetHeight(), 1), out_filename);
 
-            RenderersSetMesh("", nullptr, 0.0f, 0.0f);
+            RenderersSetMesh("", nullptr, 0.0f, 0.0f, true);
             RenderersSetEnvironmentMap(nullptr);
             UnselectCurrentRenderer();
         }
@@ -368,12 +368,12 @@ namespace viscom {
             auto meshFilename = inputDir_ + shapeNetCorePath + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
             RenderersSetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
             // SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
-            RenderersSetMesh(splitFilename[splitFilename.size() - 3] + "-" + splitFilename[splitFilename.size() - 2], GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi);
+            RenderersSetMesh(splitFilename[splitFilename.size() - 3] + "-" + splitFilename[splitFilename.size() - 2], GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi, true);
             //SetMesh(GetMeshManager().GetResource("D:/Users/Sebastian Maisch/Documents/dev/deeplearning/ModelNet10/chair/train/chair_0009.off"), 0.0f, 0.0f);
 
         }
         else {
-            RenderersSetMesh("", nullptr, 0.0f, 0.0f);
+            RenderersSetMesh("", nullptr, 0.0f, 0.0f, true);
             RenderersSetEnvironmentMap(nullptr);
         }
         UpdateBaseRendererType();
@@ -385,8 +385,19 @@ namespace viscom {
         SelectRenderers(type);
         namespace fs = std::filesystem;
         fs::path meshPath{ meshFilename };
+
+        std::string typeStr;
+        if (type == pcViewer::PCType::AO) typeStr = "ao";
+        else if (type == pcViewer::PCType::MATTE) typeStr = "matte";
+        else if (type == pcViewer::PCType::SUBSURFACE) typeStr = "subsurface";
+
+        auto meshPCPath = meshPath.parent_path() / (meshPath.stem().string() + "_" + typeStr + ".txt");
+        if (fs::exists(meshPCPath)) {
+            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string());
+        }
+
         RenderersSetEnvironmentMap(nullptr);
-        RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshFilename), 0.f, 0.f);
+        RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshFilename), 0.f, 0.f, false);
         UpdateBaseRendererType();
     }
 

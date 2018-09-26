@@ -29,7 +29,7 @@ void main()
     vec3 tangent = normalize(cross(gs_in[0].normal, b));
     vec3 binormal = normalize(cross(gs_in[0].normal, tangent));
 
-    float hlfPtSize = (bbRadius * .15f) / gl_in[0].gl_Position.w;
+    float hlfPtSize = (bbRadius * .015f);
     gs_out.normal = gs_in[0].normal;
     gs_out.result = gs_in[0].result;
     gs_out.position = gs_in[0].position - hlfPtSize * tangent + hlfPtSize * binormal;

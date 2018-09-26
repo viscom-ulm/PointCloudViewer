@@ -98,7 +98,7 @@ namespace viscom {
         void SetScreenRenderingComposition(int comp) { screenRenderingComposition_ = comp; }
 
         void RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud);
-        void RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi);
+        void RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale);
         void RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap);
         void CurrentRendererDrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const;
         void DrawLoadedScreen(const FrameBuffer& fbo) const;
@@ -135,8 +135,8 @@ namespace viscom {
         std::unique_ptr<pcViewer::MeshContainer> mesh_;
         std::array<std::unique_ptr<pcViewer::BasePointCloudContainer>, 3> pointClouds_;
         pcViewer::BasePointCloudContainer* currentPointCloud_ = nullptr;
-        std::array<std::unique_ptr<pcViewer::BaseRenderer>, 3>* currentRenderers_ = nullptr;
-        std::array<std::array<std::unique_ptr<pcViewer::BaseRenderer>, 3>, 3> renderers_;
+        std::array<std::unique_ptr<pcViewer::BaseRenderer>, 4>* currentRenderers_ = nullptr;
+        std::array<std::array<std::unique_ptr<pcViewer::BaseRenderer>, 4>, 3> renderers_;
         // glm::vec3 camPos_;
         // glm::vec3 camRot_;
 
