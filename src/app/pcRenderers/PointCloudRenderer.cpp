@@ -34,8 +34,7 @@ namespace pcViewer {
             gl::glBindVertexArray(GetPointCloud()->GetVAO());
             gl::glBindBuffer(gl::GL_ARRAY_BUFFER, GetPointCloud()->GetVBO());
 
-            glm::mat4 modelMatrix(1.0f);
-            auto MVP = GetApp()->GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
+            auto MVP = GetApp()->GetCameraEnh().GetViewProjMatrixEnh() *  GetPointCloud()->GetModelMatrix();
 
             DrawPointCloudPoints(MVP, GetApp()->GetCameraEnh().GetPosition(), batched);
 

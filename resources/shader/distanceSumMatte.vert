@@ -7,6 +7,7 @@ layout(location = 3) in vec3 directIllumination;
 layout(location = 4) in vec3 globalIllumination;
 
 uniform mat4 viewProjection;
+uniform mat4 modelMatrix;
 uniform float pointSize = 1.0f;
 uniform int renderType;
 
@@ -17,10 +18,11 @@ out vec3 vertDirectIllumination;
 
 void main()
 {
-    gl_Position =  viewProjection * vec4(position, 1.0);
+    vec4 wPos = modelMatrix * vec4(position, 1.0);
+    gl_Position =  viewProjection * wPos;
     gl_PointSize = pointSize * 750.0f / gl_Position.w;
 
-    vertPosition = position;
+    vertPosition = wPos.xyz;
     vertNormal = normal;
     if (renderType == 0) vertResult = globalIllumination;
     else if (renderType == 1) vertResult = albedo;

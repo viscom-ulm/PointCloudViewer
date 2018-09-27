@@ -97,8 +97,9 @@ namespace viscom {
         void SetBaseRenderType(pcViewer::RenderType type);
         void SetScreenRenderingComposition(int comp) { screenRenderingComposition_ = comp; }
 
-        void RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud);
+        void RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud, const glm::mat4& modelMatrix);
         void RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale);
+        void RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& modelMatrix, bool doRescale);
         void RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap);
         void CurrentRendererDrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const;
         void DrawLoadedScreen(const FrameBuffer& fbo) const;
@@ -114,6 +115,8 @@ namespace viscom {
         // bool IsRenderModel() const { return renderModel_; }
         // bool IsModelDirect() const { return modelDirect_; }
         // void SetRenderModel(bool rm) { renderModel_ = rm; }
+
+        glm::uvec2 viewportSize_;
 
     private:
         float boundingSphereRadius_ = 0.0f;

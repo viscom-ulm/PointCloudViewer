@@ -12,6 +12,7 @@
 
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 #include <ostream>
 
 namespace viscom {
@@ -74,7 +75,7 @@ namespace pcViewer {
         BasePointCloudContainer(PCType pcType, ApplicationNodeImplementation* appNode);
         virtual ~BasePointCloudContainer() = default;
 
-        void LoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud);
+        void LoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud, const glm::mat4& modelMatrix);
         virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const = 0;
 
         const std::string& GetPointCloudName() const { return pointCloudName_; }
@@ -84,6 +85,7 @@ namespace pcViewer {
         virtual bool HasDirectLight() const = 0;
         virtual std::size_t GetPointCloudSize() const = 0;
         PCType GetPointCloudType() const { return pcType_; }
+        const glm::mat4& GetModelMatrix() const { return modelMatrix_; }
 
     protected:
         virtual void LoadPointCloudGPU() = 0;
@@ -102,6 +104,7 @@ namespace pcViewer {
         enh::BufferRAII vboPointCloud_;
         /** Holds the vertex array object for the point cloud. */
         enh::VertexArrayRAII vaoPointCloud_;
+        glm::mat4 modelMatrix_;
 
         ApplicationNodeImplementation* appNode_;
     };

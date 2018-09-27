@@ -41,6 +41,8 @@
 #include "app/meshRenderers/GIMeshRenderer.h"
 #include "app/meshRenderers/SSSMeshRenderer.h"
 #include "app/comparison/HBAORenderer.h"
+#include "app/comparison/SSGIRenderer.h"
+#include "app/comparison/SSSSSRenderer.h"
 
 #include "python_fix.h"
 
@@ -96,12 +98,12 @@ namespace viscom {
         renderers_[1][0] = std::make_unique<pcViewer::GIPointCloudRenderer>(this);
         renderers_[1][1] = std::make_unique<pcViewer::GIPCOnMeshRenderer>(this);
         renderers_[1][2] = std::make_unique<pcViewer::GIMeshRenderer>(this);
-        renderers_[1][3] = std::make_unique<pcViewer::HBAORenderer>(this);
+        renderers_[1][3] = std::make_unique<pcViewer::SSGIRenderer>(this);
 
         renderers_[2][0] = std::make_unique<pcViewer::SSSPointCloudRenderer>(this);
         renderers_[2][1] = std::make_unique<pcViewer::SSSPCOnMeshRenderer>(this);
         renderers_[2][2] = std::make_unique<pcViewer::SSSMeshRenderer>(this);
-        renderers_[2][3] = std::make_unique<pcViewer::HBAORenderer>(this);
+        renderers_[2][3] = std::make_unique<pcViewer::SSSSSRenderer>(this);
 
         pointClouds_[0] = std::make_unique<pcViewer::AOPointCloudContainer>(this);
         pointClouds_[1] = std::make_unique<pcViewer::GIPointCloudContainer>(this);
@@ -260,9 +262,9 @@ namespace viscom {
         currentPointCloud_ = pointClouds_[static_cast<std::size_t>(type)].get();
     }
 
-    void ApplicationNodeImplementation::RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud)
+    void ApplicationNodeImplementation::RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud, const glm::mat4& modelMatrix)
     {
-        currentPointCloud_->LoadPointCloud(pointCloudName, pointCloud);
+        currentPointCloud_->LoadPointCloud(pointCloudName, pointCloud, modelMatrix);
         for (const auto& renderer : *currentRenderers_) {
             if (!renderer) continue;
             renderer->SetPointCloud(currentPointCloud_);
@@ -272,6 +274,15 @@ namespace viscom {
     void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale)
     {
         mesh_->SetMesh(meshName, mesh, theta, phi, doRescale);
+        for (const auto& renderer : *currentRenderers_) {
+            if (!renderer) continue;
+            renderer->SetMesh(mesh_.get());
+        }
+    }
+
+    void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& modelMatrix, bool doRescale)
+    {
+        mesh_->SetMesh(meshName, mesh, modelMatrix, doRescale);
         for (const auto& renderer : *currentRenderers_) {
             if (!renderer) continue;
             renderer->SetMesh(mesh_.get());
@@ -333,6 +344,16 @@ namespace viscom {
 
     void ApplicationNodeImplementation::DrawFrame(FrameBuffer& fbo)
     {
+        // auto deferredFBO = SelectOffscreenBuffer(deferredFBOs_);
+        // if (GetCameraEnh().IsFixed()) {
+        //     fbo.SetStandardViewport(0, 0, viewportSize_.x, viewportSize_.y);
+        //     for (auto& dfbo : deferredFBOs_) dfbo.SetStandardViewport(0, 0, viewportSize_.x, viewportSize_.y);
+        // }
+        // else {
+        //     fbo.SetStandardViewport(0, 0, fbo.GetWidth(), fbo.GetHeight());
+        //     for (auto& dfbo : deferredFBOs_) dfbo.SetStandardViewport(0, 0, fbo.GetWidth(), fbo.GetHeight());
+        // }
+
         if (baseRenderType_ == pcViewer::RenderType::SCREEN) {
             DrawLoadedScreen(fbo);
         }

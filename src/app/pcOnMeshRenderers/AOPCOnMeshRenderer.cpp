@@ -21,13 +21,14 @@ namespace pcViewer {
         PCOnMeshRenderer{ PCType::AO, appNode }
     {
         distanceSumAOProgram_ = GetApp()->GetGPUProgramManager().GetResource("distanceSumAO", std::vector<std::string>{ "distanceSumAO.vert", "distanceSum.frag" });
-        distanceSumAOUniformLocations_ = distanceSumAOProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize", "outputDirectLight" });
+        distanceSumAOUniformLocations_ = distanceSumAOProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize", "outputDirectLight", "modelMatrix" });
     }
 
-    void AOPCOnMeshRenderer::DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO)
+    void AOPCOnMeshRenderer::DrawPointCloudDistanceSum(const glm::mat4& VP, const glm::mat4& M, const FrameBuffer& deferredFBO)
     {
         gl::glUseProgram(distanceSumAOProgram_->getProgramId());
-        gl::glUniformMatrix4fv(distanceSumAOUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
+        gl::glUniformMatrix4fv(distanceSumAOUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
+        gl::glUniformMatrix4fv(distanceSumAOUniformLocations_[6], 1, gl::GL_FALSE, glm::value_ptr(M));
 
         gl::glActiveTexture(gl::GL_TEXTURE2);
         gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[0]);

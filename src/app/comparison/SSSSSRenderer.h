@@ -1,5 +1,5 @@
 /**
- * @file   PCOnMeshRenderer.h
+ * @file   SSSSSRenderer.h
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2018.08.23
  *
@@ -12,28 +12,30 @@
 
 namespace pcViewer {
 
-    class PCOnMeshRenderer : public BaseRenderer
+    class SSSSSRenderer : public BaseRenderer
     {
     public:
-        PCOnMeshRenderer(PCType pcType, ApplicationNodeImplementation* appNode);
+        SSSSSRenderer(ApplicationNodeImplementation* appNode);
 
         virtual bool IsAvaialble() const override;
 
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
 
-        void DrawPointCloudDistanceSumInternal(const FrameBuffer& deferredFBO);
-        virtual void DrawPointCloudDistanceSum(const glm::mat4& VP, const glm::mat4& M, const FrameBuffer& deferredFBO) = 0;
-        void DrawPointCloudOnMesh(const FrameBuffer& deferredFBO);
+        void DrawHBAO(const FrameBuffer& deferredFBO);
 
         virtual bool IsAmbientOcclustion() const { return false; }
 
         virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const override;
+        virtual void RenderGUIByType() override {};
+        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
 
     private:
         /** Holds the program for final rendering. */
-        std::unique_ptr<FullscreenQuad> finalQuad_;
+        std::unique_ptr<FullscreenQuad> hbaoQuad_;
         /** Holds the uniform bindings for final rendering. */
-        std::vector<gl::GLint> finalUniformLocations_;
+        std::vector<gl::GLint> hbaoUniformLocations_;
+
+        viscom::enh::TextureRAII noiseTexture_;
     };
 }

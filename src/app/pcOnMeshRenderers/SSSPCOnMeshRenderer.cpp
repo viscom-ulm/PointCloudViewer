@@ -19,13 +19,14 @@ namespace pcViewer {
         PCOnMeshRenderer{ PCType::SUBSURFACE, appNode }
     {
         distanceSumSubsurfaceProgram_ = GetApp()->GetGPUProgramManager().GetResource("distanceSumSubsurface", std::vector<std::string>{ "distanceSumSubsurface.vert", "distanceSum.frag" });
-        distanceSumSubsurfaceUniformLocations_ = distanceSumSubsurfaceProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize", "renderType" });
+        distanceSumSubsurfaceUniformLocations_ = distanceSumSubsurfaceProgram_->GetUniformLocations({ "viewProjection", "positionTexture", "normalTexture", "distancePower", "pointSize", "renderType", "modelMatrix" });
     }
 
-    void SSSPCOnMeshRenderer::DrawPointCloudDistanceSum(const glm::mat4& MVP, const FrameBuffer& deferredFBO)
+    void SSSPCOnMeshRenderer::DrawPointCloudDistanceSum(const glm::mat4& VP, const glm::mat4& M, const FrameBuffer& deferredFBO)
     {
         gl::glUseProgram(distanceSumSubsurfaceProgram_->getProgramId());
-        gl::glUniformMatrix4fv(distanceSumSubsurfaceUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(MVP));
+        gl::glUniformMatrix4fv(distanceSumSubsurfaceUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
+        gl::glUniformMatrix4fv(distanceSumSubsurfaceUniformLocations_[6], 1, gl::GL_FALSE, glm::value_ptr(M));
 
         gl::glActiveTexture(gl::GL_TEXTURE2);
         gl::glBindTexture(gl::GL_TEXTURE_2D, deferredFBO.GetTextures()[0]);

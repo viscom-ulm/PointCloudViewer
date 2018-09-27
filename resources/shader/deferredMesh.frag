@@ -2,6 +2,7 @@
 
 uniform sampler2D diffuseTexture;
 uniform vec3 camPos;
+uniform vec3 albedo;
 uniform vec3 sigmat;
 uniform float eta;
 uniform vec3 lightPos = vec3(10.0, 0.0, 0.0);
@@ -25,10 +26,10 @@ void main()
     
     position = vec4(vertPosition, 1.0);
     normal = vec4(normalize(vertNormal), 1.0);
-    color = vec4(texture(diffuseTexture, vertTexCoords).rgb, 1.0);
+    color = vec4(albedo, 1.0);
     scatteringParams = vec4(sigmat, eta);
 
-    vec3 light = lightPos - position.xyz;
+    vec3 light = normalize(lightPos - position.xyz);
 
     float nDotL = clamp(dot(normal.xyz, light), 0.0, 1.0);
     if (outputDirectLight == 1) directIllumination = vec4(nDotL * lightColor * lightMultiplicator, 1.0);

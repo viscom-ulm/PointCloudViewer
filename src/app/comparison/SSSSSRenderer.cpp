@@ -1,12 +1,12 @@
 /**
- * @file   HBAORenderer.cpp
+ * @file   SSSSSRenderer.cpp
  * @author Sebastian Maisch <sebastian.maisch@uni-ulm.de>
  * @date   2018.08.23
  *
  * @brief  Implementation of the base point cloud on mesh renderer class.
  */
 
-#include "HBAORenderer.h"
+#include "SSSSSRenderer.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "core/CameraHelper.h"
 #include "core/gfx/FrameBuffer.h"
@@ -24,8 +24,8 @@
 namespace pcViewer {
 
 
-    HBAORenderer::HBAORenderer(ApplicationNodeImplementation* appNode) :
-        BaseRenderer{ PCType::AO, RenderType::PC_ON_MESH, "HBAO", appNode }
+    SSSSSRenderer::SSSSSRenderer(ApplicationNodeImplementation* appNode) :
+        BaseRenderer{ PCType::SUBSURFACE, RenderType::PC_ON_MESH, "SSSSS", appNode }
     {
         hbaoQuad_ = std::make_unique<FullscreenQuad>("comparison/hbao.frag", GetApp());
         hbaoUniformLocations_ = hbaoQuad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "directIlluminationTexture", "noiseTexture", "camPos", "view" });
@@ -52,12 +52,12 @@ namespace pcViewer {
         gl::glTexImage2D(gl::GL_TEXTURE_2D, 0, gl::GL_RGBA32F, noiseWidth, noiseHeight, 0, gl::GL_RGBA, gl::GL_FLOAT, noise.data());
     }
 
-    bool HBAORenderer::IsAvaialble() const
+    bool SSSSSRenderer::IsAvaialble() const
     {
         return (GetMesh() != nullptr);
     }
 
-    void HBAORenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    void SSSSSRenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
         deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
             GetMesh()->DrawMeshDeferred(true);
@@ -68,7 +68,7 @@ namespace pcViewer {
         });
     }
 
-    void HBAORenderer::DrawHBAO(const FrameBuffer & deferredFBO)
+    void SSSSSRenderer::DrawHBAO(const FrameBuffer & deferredFBO)
     {
         gl::glUseProgram(hbaoQuad_->GetGPUProgram()->getProgramId());
 
@@ -97,12 +97,12 @@ namespace pcViewer {
         // GetMesh()->DrawMeshDeferredAndExport(true);
     }
 
-    void HBAORenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    void SSSSSRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
     {
         throw std::runtime_error("ExportScreenPointCloudMesh: Not implemented!!");
     }
 
-    void HBAORenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
+    void SSSSSRenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
     {
         throw std::runtime_error("ExportScreenPointCloudScreen: Not implemented!!");
     }

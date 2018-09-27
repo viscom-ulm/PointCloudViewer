@@ -35,6 +35,7 @@ namespace viscom {
         void LoadPointCloud(const std::string& pointCloud, const std::vector<std::string>& splitFilename, bool loadModel);
         void LoadMesh(pcViewer::PCType type, const std::string& meshname);
         void LoadScreenTexture(const std::string& filename, const std::vector<std::string>& splitFilename);
+        void LoadParamsFile(const std::string& meshname);
 
         /* Holds the input directory. */
         std::string inputDir_;
@@ -58,6 +59,7 @@ namespace viscom {
 
         bool inputFileSelected_ = false;
         bool inputBatchMode_ = false;
+        bool hideGUI_ = false;
 
         static std::string singleFile_;
 

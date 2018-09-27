@@ -21,7 +21,7 @@ namespace pcViewer {
         appNode_{ appNode }
     {
         deferredProgram_ = appNode->GetGPUProgramManager().GetResource("deferredMesh", std::vector<std::string>{ "deferredMesh.vert", "deferredMesh.frag" });
-        deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection", "camPos", "sigmat", "eta", "lightPos", "lightColor", "lightMultiplicator", "outputDirectLight", "doExport" });
+        deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection", "camPos", "sigmat", "eta", "lightPos", "lightColor", "lightMultiplicator", "outputDirectLight", "doExport", "albedo" });
 
         pointCloudOutputSSBO_ = std::make_unique<enh::ShaderBufferObject>("pointCloudOutput", appNode_->GetSSBOBindingPoints(), true);
         appNode_->GetSSBOBindingPoints()->BindBufferBlock(deferredProgram_->getProgramId(), "pointCloudOutput");
@@ -32,13 +32,23 @@ namespace pcViewer {
 
     void MeshContainer::SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale)
     {
-        meshName_ = meshName;
-        mesh_ = std::move(mesh);
         theta_ = theta;
         phi_ = phi;
-        meshModel_ = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
-        meshModel_ = meshModel_ * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
-        if (doRescale) rescale_ = 10.0f;
+        auto mm = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
+        mm = mm * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        SetMesh(meshName, mesh, mm, doRescale);
+    }
+    
+    void MeshContainer::SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& meshModel, bool doRescale)
+    {
+        meshName_ = meshName;
+        mesh_ = std::move(mesh);
+        meshModel_ = meshModel;
+        if (doRescale) {
+            glm::mat4 modelMatrix(10.0f);
+            meshModel_ = meshModel_ * modelMatrix;
+        }
 
         if (!mesh_) {
             meshRenderable_ = nullptr;
@@ -64,10 +74,10 @@ namespace pcViewer {
 
     void MeshContainer::DrawMeshDeferred(bool doDirectLighting, bool doExport) const
     {
-        auto VP = doExport ? appNode_->GetCameraEnh().GetViewPerspectiveExport() : appNode_->GetCamera()->GetViewPerspectiveMatrix();
+        auto VP = doExport ? appNode_->GetCameraEnh().GetViewPerspectiveExport() : appNode_->GetCameraEnh().GetViewProjMatrixEnh();
 
         auto VPE = appNode_->GetCameraEnh().GetViewPerspectiveExport();
-        auto VPNE = appNode_->GetCamera()->GetViewPerspectiveMatrix();
+        auto VPNE = appNode_->GetCameraEnh().GetViewProjMatrixEnh();
 
         // VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
 
@@ -84,6 +94,7 @@ namespace pcViewer {
         gl::glUniform1f(deferredUniformLocations_[6], const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightMultiplicator());
         gl::glUniform1i(deferredUniformLocations_[7], doDirectLighting ? 1 : 0);
         gl::glUniform1i(deferredUniformLocations_[8], doExport ? 1 : 0);
+        gl::glUniform3fv(deferredUniformLocations_[9], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetAlpha()));
         meshRenderable_->Draw(meshModel_ * modelMatrix);
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);

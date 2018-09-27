@@ -90,7 +90,15 @@ file(GLOB SRC_FILES_ROOT
     ${PROJECT_SOURCE_DIR}/src/*.h
     ${PROJECT_SOURCE_DIR}/src/*.cpp)
 list(APPEND SRC_FILES ${SRC_FILES_ROOT})
-source_group("shader" FILES ${SHADER_FILES})
+
+foreach(f ${SHADER_FILES})
+    file(RELATIVE_PATH SRCGR ${PROJECT_SOURCE_DIR}/resources/ ${f})
+    string(REGEX REPLACE "(.*)(/[^/]*)$" "\\1" SRCGR ${SRCGR})
+    string(REPLACE / \\ SRCGR ${SRCGR})
+    source_group("${SRCGR}" FILES ${f})
+endforeach()
+
+## source_group("shader" FILES ${SHADER_FILES})
 
 foreach(f ${SRC_FILES})
     file(RELATIVE_PATH SRCGR ${PROJECT_SOURCE_DIR} ${f})

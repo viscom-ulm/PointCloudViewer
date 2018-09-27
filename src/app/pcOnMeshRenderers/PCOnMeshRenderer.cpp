@@ -62,9 +62,9 @@ namespace pcViewer {
         gl::glBlendEquationSeparate(gl::GL_FUNC_ADD, gl::GL_FUNC_ADD);
         gl::glBlendFuncSeparate(gl::GL_ONE, gl::GL_ONE, gl::GL_ONE, gl::GL_ONE);
 
-        glm::mat4 modelMatrix(1.0f);
-        auto MVP = GetApp()->GetCamera()->GetViewPerspectiveMatrix() * modelMatrix;
-        DrawPointCloudDistanceSum(MVP, deferredFBO);
+        auto VP = GetApp()->GetCameraEnh().GetViewProjMatrixEnh();
+        auto M = GetPointCloud()->GetModelMatrix();
+        DrawPointCloudDistanceSum(VP, M, deferredFBO);
 
         gl::glDisable(gl::GL_BLEND);
         gl::glDepthMask(gl::GL_TRUE);

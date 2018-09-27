@@ -17,9 +17,10 @@ namespace pcViewer {
     {
     }
 
-    void BasePointCloudContainer::LoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud)
+    void BasePointCloudContainer::LoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud, const glm::mat4& modelMatrix)
     {
         pointCloudName_ = pointCloudName;
+        modelMatrix_ = modelMatrix;
         std::ifstream pc_in(pointCloud);
         ClearPointCloud();
         GetApp()->ClearRadius();

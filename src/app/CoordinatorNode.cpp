@@ -38,8 +38,8 @@ namespace viscom {
 
     void CoordinatorNode::InitOpenGLInternal()
     {
-        constexpr unsigned int headless_width = 512;
-        constexpr unsigned int headless_height = 512;
+        constexpr unsigned int headless_width = 1024;
+        constexpr unsigned int headless_height = 1024;
 
         FrameBufferDescriptor headlessFBODesc{ {
                 FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
@@ -59,17 +59,22 @@ namespace viscom {
         std::vector<std::string> supportedDriveLetters = { "A:/", "B:/", "C:/", "D:/", "E:/", "F:/", "G:/", "H:/" };
         namespace fs = std::filesystem;
 
+        if (hideGUI_) return;
+
         fbo.DrawToFBO([&]() {
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
             ImGui::StyleColorsClassic();
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
                 ImGui::InputFloat("Point Size", &GetPointSize(), 0.1f);
+                ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&GetAlpha()));
                 ImGui::ColorEdit3("SigmaT", reinterpret_cast<float*>(&GetSigmaT()));
                 ImGui::InputFloat("Eta", &GetEta());
                 ImGui::InputFloat3("Light Position", reinterpret_cast<float*>(&GetLightPosition()));
                 ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&GetLightColor()));
                 ImGui::InputFloat("Light Multiplicator", &GetLightMultiplicator());
+                ImGui::Spacing();
+                if (ImGui::Button("Release Camera")) GetCameraEnh().ReleaseView();
                 ImGui::Spacing();
                 RendererSelectionGUI();
 
@@ -122,6 +127,9 @@ namespace viscom {
                         if (ImGui::Button("Load Mesh GI")) LoadMesh(pcViewer::PCType::MATTE, selectedFilename);
                         ImGui::SameLine();
                         if (ImGui::Button("Load Mesh SSS")) LoadMesh(pcViewer::PCType::SUBSURFACE, selectedFilename);
+                    }
+                    else if (fileExt == ".params") {
+                        if (ImGui::Button("Import DNN Results")) LoadParamsFile(selectedFilename);
                     }
                     else {
                         inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
@@ -201,7 +209,7 @@ namespace viscom {
         if (!pcFilesOnly) content.emplace_back("..");
 
         auto checkPCFile = [](const fs::path& p) { 
-            if (!(p.extension().string() == ".txt" || p.extension().string() == ".TXT" || p.extension().string() == ".obj" || p.extension().string() == ".OBJ")) return false;
+            if (!(p.extension().string() == ".txt" || p.extension().string() == ".TXT" || p.extension().string() == ".obj" || p.extension().string() == ".OBJ" || p.extension().string() == ".params")) return false;
             return true;
         };
 
@@ -311,7 +319,7 @@ namespace viscom {
             throw std::invalid_argument("Wrong file format selected.");
         }
 
-        RenderersLoadPointCloud(splitFilename[1] + "_" + splitFilename[splitFilename.size() - 1], pointCloud);
+        RenderersLoadPointCloud(splitFilename[1] + "_" + splitFilename[splitFilename.size() - 1], pointCloud, glm::mat4());
 
         if (loadModel) {
             std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
@@ -393,7 +401,7 @@ namespace viscom {
 
         auto meshPCPath = meshPath.parent_path() / (meshPath.stem().string() + "_" + typeStr + ".txt");
         if (fs::exists(meshPCPath)) {
-            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string());
+            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), glm::mat4());
         }
 
         RenderersSetEnvironmentMap(nullptr);
@@ -515,6 +523,107 @@ namespace viscom {
         StartRenderScreen(std::move(screenTextures));
     }
 
+    float parseFlt(const std::string& str) {
+        return static_cast<float>(std::atof(str.c_str()));
+    }
+
+    glm::vec3 parseVec3(const std::string& str) {
+        glm::vec3 res;
+        auto splitStr = utils::split(str, ',');
+        res.x = static_cast<float>(std::atof(splitStr[0].c_str()));
+        res.y = static_cast<float>(std::atof(splitStr[1].c_str()));
+        res.z = static_cast<float>(std::atof(splitStr[2].c_str()));
+        return res;
+    }
+
+    glm::uvec2 parseUvec2(const std::string& str) {
+        glm::uvec2 res;
+        auto splitStr = utils::split(str, ',');
+        res.x = static_cast<unsigned int>(std::atoi(splitStr[0].c_str()));
+        res.y = static_cast<unsigned int>(std::atoi(splitStr[1].c_str()));
+        return res;
+    }
+
+    glm::mat4 parseMat4(const std::string& str) {
+        glm::mat4 res;
+        auto splitStr = utils::split(str, ',');
+        res[0][0] = static_cast<float>(std::atof(splitStr[0].c_str()));
+        res[1][0] = static_cast<float>(std::atof(splitStr[1].c_str()));
+        res[2][0] = static_cast<float>(std::atof(splitStr[2].c_str()));
+        res[3][0] = static_cast<float>(std::atof(splitStr[3].c_str()));
+        res[0][1] = static_cast<float>(std::atof(splitStr[4].c_str()));
+        res[1][1] = static_cast<float>(std::atof(splitStr[5].c_str()));
+        res[2][1] = static_cast<float>(std::atof(splitStr[6].c_str()));
+        res[3][1] = static_cast<float>(std::atof(splitStr[7].c_str()));
+        res[0][2] = static_cast<float>(std::atof(splitStr[8].c_str()));
+        res[1][2] = static_cast<float>(std::atof(splitStr[9].c_str()));
+        res[2][2] = static_cast<float>(std::atof(splitStr[10].c_str()));
+        res[3][2] = static_cast<float>(std::atof(splitStr[11].c_str()));
+        res[0][3] = static_cast<float>(std::atof(splitStr[12].c_str()));
+        res[1][3] = static_cast<float>(std::atof(splitStr[13].c_str()));
+        res[2][3] = static_cast<float>(std::atof(splitStr[14].c_str()));
+        res[3][3] = static_cast<float>(std::atof(splitStr[15].c_str()));
+        return res;
+    }
+
+    void CoordinatorNode::LoadParamsFile(const std::string& paramsname)
+    {
+        inputFileSelected_ = true;
+        std::ifstream paramsIn{ paramsname };
+        std::string typeLine, meshFilename, pcFilename, sigmaTStr, etaStr, albedoStr, lightPosStr, lightColorStr, lightMulStr, resStr, viewMatrixStr, projMatrixStr, modelMatrixStr;
+        std::getline(paramsIn, typeLine); //
+        std::getline(paramsIn, meshFilename); //
+        std::getline(paramsIn, pcFilename); //
+
+        std::getline(paramsIn, sigmaTStr); //
+        std::getline(paramsIn, etaStr); //
+        std::getline(paramsIn, albedoStr); //
+        std::getline(paramsIn, lightPosStr); //
+        std::getline(paramsIn, lightColorStr); //
+        std::getline(paramsIn, lightMulStr); //
+        std::getline(paramsIn, resStr); //
+        std::getline(paramsIn, modelMatrixStr);
+        std::getline(paramsIn, viewMatrixStr);
+        std::getline(paramsIn, projMatrixStr);
+
+        if (typeLine == "ao") SelectRenderers(pcViewer::PCType::AO);
+        else if (typeLine == "matte") SelectRenderers(pcViewer::PCType::MATTE);
+        else if (typeLine == "subsurface") SelectRenderers(pcViewer::PCType::SUBSURFACE);
+
+        GetSigmaT() = parseVec3(sigmaTStr);
+        GetEta() = parseFlt(etaStr);
+        GetAlpha() = parseVec3(albedoStr);
+        GetLightPosition() = parseVec3(lightPosStr);
+        GetLightColor() = parseVec3(lightColorStr);
+        GetLightMultiplicator() = parseFlt(lightMulStr);
+        auto res = parseUvec2(resStr);
+        assert(res.x == 1024 && res.y == 1024);
+
+        viewportSize_ = res;
+
+        auto viewMatrix = parseMat4(viewMatrixStr);
+        auto projMatrix = parseMat4(projMatrixStr);
+        auto modelMatrix = parseMat4(modelMatrixStr);
+
+        GetCameraEnh().FixView(viewMatrix, projMatrix);
+
+        namespace fs = std::filesystem;
+        fs::path paramsPath{ paramsname };
+        auto meshPath = paramsPath.parent_path() / meshFilename;
+        auto meshPCPath = paramsPath.parent_path() / pcFilename;
+
+        if (fs::exists(meshPCPath)) {
+            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), modelMatrix);
+        }
+
+        if (fs::exists(meshPath)) {
+            RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshPath.string()), modelMatrix, false);
+        }
+
+        RenderersSetEnvironmentMap(nullptr);
+        UpdateBaseRendererType();
+    }
+
     bool CoordinatorNode::KeyboardCallback(int key, int scancode, int action, int mods)
     {
         if (ApplicationNodeImplementation::KeyboardCallback(key, scancode, action, mods)) return true;
@@ -532,6 +641,12 @@ namespace viscom {
             if (action == GLFW_PRESS && mods == GLFW_MOD_CONTROL) {
                 inputBatchMode_ = true;
                 inputFileSelected_ = true;
+                return true;
+            }
+            break;
+        case GLFW_KEY_H:
+            if (action == GLFW_PRESS && mods == GLFW_MOD_CONTROL) {
+                hideGUI_ = !hideGUI_;
                 return true;
             }
             break;

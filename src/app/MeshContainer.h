@@ -38,6 +38,7 @@ namespace pcViewer {
 
         operator bool() const { return static_cast<bool>(mesh_); }
         void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale);
+        void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& meshModel, bool doRescale);
         void DrawMeshDeferred(bool doDirectLighting) const;
         void DrawMeshDeferredAndExport(bool doDirectLighting);
         const std::vector<glm::vec3>& GetPositions() const;
