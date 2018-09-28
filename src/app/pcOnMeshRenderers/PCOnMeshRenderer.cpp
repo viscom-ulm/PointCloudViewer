@@ -35,6 +35,7 @@ namespace pcViewer {
 
     void PCOnMeshRenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
+        GetMesh()->DrawShadowMap();
         deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
             if (GetPointCloud() && GetPointCloud()->HasDirectLight()) GetMesh()->DrawMeshDeferred(false);
             else GetMesh()->DrawMeshDeferred(true);

@@ -226,7 +226,10 @@ namespace viscom {
     {
         auto folderContent = GetDirectoryContent(folder, true);
 
-        for (const auto& file : folderContent) RenderFileHeadless(folder + "/" + file, renderType);
+        namespace fs = std::filesystem;
+        for (const auto& file : folderContent) {
+            RenderFileHeadless(folder + "/" + file, renderType);
+        }
 
         inputBatchMode_ = false;
     }

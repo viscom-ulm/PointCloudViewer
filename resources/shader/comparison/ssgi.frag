@@ -14,7 +14,7 @@ uniform sampler2D directIlluminationTexture;
 uniform vec3 camPos;
 
 const int kernelSize = 10;
-const int radiusi = 5;
+const int radiusi = 20;
 
 in vec2 texCoord;
 
@@ -36,8 +36,9 @@ void main(void)
     binormal = normalize(binormal);
 
     vec3 Lind = vec3(0.0);
-    for (int x = -kernelSize; x < kernelSize; ++x) {
-        for (int y = -kernelSize; y < kernelSize; ++y) {
+    float rmax = 1.0f, N = 0.0f;
+    for (int x = -kernelSize; x <= kernelSize; ++x) {
+        for (int y = -kernelSize; y <= kernelSize; ++y) {
             if (x == 0 && y == 0) continue;
 
             float radius = 10 * radiusi / position.z;
@@ -49,7 +50,8 @@ void main(void)
             vec3 n = normalize(textureOffset(normalTexture, texCoord, ivec2(radius * x, radius * y)).rgb);
 
             vec3 dir = p - position;
-            float d = max(4, length(dir));
+            float d = max(1, length(dir));
+            rmax = max(rmax, length(dir));
             dir = normalize(dir);
             float costhetar = clamp(dot(dir, normal), 0, 1);
             float costhetas = clamp(dot(-dir, n), 0, 1);
@@ -57,17 +59,23 @@ void main(void)
             vec3 t = dFdx(p);
             vec3 b = dFdy(p);
             // float As = radius * radius * length(cross(t, b));
-            float As = radiusi * radiusi * PI / (4 * kernelSize * kernelSize);
+            // float As = (radiusi * radiusi) / (kSize * kSize);
+            float Afact = clamp(dot(n, normalize(camPos - p)), 0.1, 1.0);
+            // As /= Afact;
 
             vec3 Is = textureOffset(directIlluminationTexture, texCoord, ivec2(radius * x, radius * y)).rgb;
             vec3 Cs = textureOffset(materialColorTexture, texCoord, ivec2(radius * x, radius * y)).rgb;
-            Lind += (Is * Cs * As * costhetas * costhetar) / (PI * d * d);
+            Lind += (Is * Cs * costhetas * costhetar) / (Afact * d * d);
+            N += 1.0f;
         }
     }
 
+    float As = (rmax * rmax) / N;
+
+    // Lind = vec3(0);
     vec3 I = texture(directIlluminationTexture, texCoord).rgb;
     vec3 C = texture(materialColorTexture, texCoord).rgb;
-    vec3 L = Lind + (I * C) / PI;
+    vec3 L = (As * Lind) + (I * C) / PI;
 
     ssgi = vec4(L, 1);
 }

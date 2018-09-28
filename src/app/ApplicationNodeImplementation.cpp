@@ -238,7 +238,7 @@ namespace viscom {
 
             ImGui::Spacing();
             auto brt = static_cast<std::size_t>(baseRenderType_);
-            if (brt < 3) (*currentRenderers_)[brt]->RenderGUI();
+            if (brt < 4) (*currentRenderers_)[brt]->RenderGUI();
         }
     }
 

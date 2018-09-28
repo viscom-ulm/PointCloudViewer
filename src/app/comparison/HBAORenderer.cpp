@@ -59,6 +59,7 @@ namespace pcViewer {
 
     void HBAORenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
+        GetMesh()->DrawShadowMap();
         deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
             GetMesh()->DrawMeshDeferred(true);
         });
@@ -100,6 +101,13 @@ namespace pcViewer {
     void HBAORenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
     {
         throw std::runtime_error("ExportScreenPointCloudMesh: Not implemented!!");
+    }
+
+    void HBAORenderer::RenderGUIByType()
+    {
+        if (ImGui::Button("Export HBAO PBRT")) {
+
+        }
     }
 
     void HBAORenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const

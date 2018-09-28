@@ -9,6 +9,7 @@ const float PI = 3.14159265;
 
 uniform sampler2D positionTexture;
 uniform sampler2D normalTexture;
+uniform sampler2D directIlluminationTexture;
 uniform sampler2D noiseTexture;
 uniform vec3 camPos;
 uniform mat4 view;
@@ -248,4 +249,5 @@ void main(void)
     }
 
     ao = vec4(aoVal, aoVal, aoVal, 1.0);
+    ao = vec4(aoVal * texture(directIlluminationTexture, texCoord).rgb, 1.0);
 }

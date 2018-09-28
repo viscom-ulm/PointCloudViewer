@@ -185,6 +185,7 @@ namespace pcViewer {
             ExportScreenPointCloud(appNode_->GetDeferredExportFBO(), namePrefix, infoOut, screenPoints, meshPoints);
             ExportPBRT(namePrefix, glm::uvec2(appNode_->GetDeferredExportFBO().GetWidth(), appNode_->GetDeferredExportFBO().GetHeight()), pbrtOut);
         }
+        // TODO add export version for images and pbrt... [9/28/2018 Sebastian Maisch]
     }
 
     void BaseRenderer::SetEnvironmentMap(std::shared_ptr<Texture> envMap)

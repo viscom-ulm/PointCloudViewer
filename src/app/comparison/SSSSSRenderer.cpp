@@ -59,6 +59,7 @@ namespace pcViewer {
 
     void SSSSSRenderer::DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
     {
+        GetMesh()->DrawShadowMap();
         deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
             GetMesh()->DrawMeshDeferred(true);
         });

@@ -1,6 +1,7 @@
 #version 330 core
 
 uniform sampler2D diffuseTexture;
+uniform sampler2DShadow shadowMap;
 uniform vec3 camPos;
 uniform vec3 albedo;
 uniform vec3 sigmat;
@@ -13,6 +14,7 @@ uniform int outputDirectLight = 1;
 in vec3 vertPosition;
 in vec3 vertNormal;
 in vec2 vertTexCoords;
+in vec4 shadowCoords;
 
 layout(location = 0) out vec4 position;
 layout(location = 1) out vec4 normal;
@@ -32,5 +34,24 @@ void main()
     vec3 light = normalize(lightPos - position.xyz);
 
     float nDotL = clamp(dot(normal.xyz, light), 0.0, 1.0);
-    if (outputDirectLight == 1) directIllumination = vec4(nDotL * lightColor * lightMultiplicator, 1.0);
+    if (outputDirectLight == 1) {
+        float bias = -2*clamp(0.005*tan(acos(nDotL)), 0, 0.02);
+        float visibility = 0.0f, cnt = 0.0f;
+        vec3 coords = shadowCoords.xyz / shadowCoords.w;
+        coords.z += bias;
+        for (int x = -3; x <= 3; ++x) {
+            for (int y = -3; y <= 3; ++y) {
+                visibility += textureOffset(shadowMap, coords, ivec2(x,y));
+                cnt += 1.0f;
+            }
+        }
+
+        visibility /= cnt;
+        
+        // float visibility = texture(shadowMap, coords);
+        // if (textureProj(shadowMap, shadowCoords.xyw).x < (shadowCoords.z) / shadowCoords.w) visibility = 0.0;
+
+        directIllumination = vec4(visibility * nDotL * lightColor * lightMultiplicator, 1.0);
+        // directIllumination = vec4(textureProj(shadowMap, shadowCoords.xyw).xyz, (shadowCoords.z) / shadowCoords.w);
+    }
 }

@@ -17,6 +17,7 @@ uniform mat4 viewProjection;
 uniform mat4 modelMatrix;
 uniform mat3 normalMatrix;
 uniform int doExport = 0;
+uniform mat4 depthBiasVP;
 
 uniform sampler2D diffuseTexture;
 uniform vec3 sigmat;
@@ -32,6 +33,7 @@ layout(std430) buffer pointCloudOutput {
 out vec3 vertPosition;
 out vec3 vertNormal;
 out vec2 vertTexCoords;
+out vec4 shadowCoords;
 
 void main()
 {
@@ -39,6 +41,7 @@ void main()
     vertPosition = worldPosition.xyz;
     vertNormal = normalize(normalMatrix * normal);
     vertTexCoords = texCoords;
+    shadowCoords = depthBiasVP * worldPosition;
 
     if (doExport == 1) {
         pointCloud[gl_VertexID].position = vec4(vertPosition, 1);

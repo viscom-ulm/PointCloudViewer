@@ -40,6 +40,7 @@ namespace pcViewer {
         void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale);
         void SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& meshModel, bool doRescale);
         void DrawMeshDeferred(bool doDirectLighting) const;
+        void DrawShadowMap();
         void DrawMeshDeferredAndExport(bool doDirectLighting);
         const std::vector<glm::vec3>& GetPositions() const;
         const std::vector<glm::vec3>& GetNormals() const;
@@ -58,6 +59,7 @@ namespace pcViewer {
         std::shared_ptr<Mesh> mesh_;
         /** Holds the mesh renderable. */
         std::unique_ptr<enh::MeshRenderable> meshRenderable_;
+        std::unique_ptr<enh::MeshRenderable> meshRenderableSM_;
         /** The meshes model matrix. */
         glm::mat4 meshModel_;
 
@@ -71,6 +73,11 @@ namespace pcViewer {
         std::vector<gl::GLint> deferredUniformLocations_;
 
         std::unique_ptr<enh::ShaderBufferObject> pointCloudOutputSSBO_;
+
+        std::unique_ptr<FrameBuffer> shadowMap_;
+        std::shared_ptr<GPUProgram> shadowMapProgram_;
+        std::vector<gl::GLint> shadowMapUniformLocations_;
+        glm::mat4 lightViewProj_;
 
         ApplicationNodeImplementation* appNode_;
 
