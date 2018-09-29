@@ -70,6 +70,11 @@ endif()
 include(${PROJECT_SOURCE_DIR}/extern/fwcore/CMake_core.cmake)
 include(${PROJECT_SOURCE_DIR}/extern/fwenh/CMake_enh.cmake)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+find_package(PythonInterp)
+find_package(PythonLibs)
+find_package(numpy)
+
 set(VISCOM_CONFIG_NAME "single" CACHE STRING "Name/directory of the configuration files to be used.")
 set(VISCOM_VIRTUAL_SCREEN_X 1920 CACHE INTEGER "Virtual screen size in x direction.")
 set(VISCOM_VIRTUAL_SCREEN_Y 1080 CACHE INTEGER "Virtual screen size in y direction.")
@@ -77,6 +82,7 @@ set(VISCOM_VIRTUAL_SCREEN_Y 1080 CACHE INTEGER "Virtual screen size in y directi
 file(GLOB_RECURSE CFG_FILES ${PROJECT_SOURCE_DIR}/config/*.*)
 file(GLOB_RECURSE DATA_FILES ${PROJECT_SOURCE_DIR}/data/*.*)
 file(GLOB_RECURSE SHADER_FILES ${PROJECT_SOURCE_DIR}/resources/shader/*.*)
+list(FILTER SHADER_FILES EXCLUDE REGEX ".*\.gen$")
 file(GLOB_RECURSE SRC_FILES
     ${PROJECT_SOURCE_DIR}/src/app/*.h
     ${PROJECT_SOURCE_DIR}/src/app/*.cpp)
@@ -84,7 +90,15 @@ file(GLOB SRC_FILES_ROOT
     ${PROJECT_SOURCE_DIR}/src/*.h
     ${PROJECT_SOURCE_DIR}/src/*.cpp)
 list(APPEND SRC_FILES ${SRC_FILES_ROOT})
-source_group("shader" FILES ${SHADER_FILES})
+
+foreach(f ${SHADER_FILES})
+    file(RELATIVE_PATH SRCGR ${PROJECT_SOURCE_DIR}/resources/ ${f})
+    string(REGEX REPLACE "(.*)(/[^/]*)$" "\\1" SRCGR ${SRCGR})
+    string(REPLACE / \\ SRCGR ${SRCGR})
+    source_group("${SRCGR}" FILES ${f})
+endforeach()
+
+## source_group("shader" FILES ${SHADER_FILES})
 
 foreach(f ${SRC_FILES})
     file(RELATIVE_PATH SRCGR ${PROJECT_SOURCE_DIR} ${f})
@@ -96,8 +110,8 @@ endforeach()
 add_executable(${APP_NAME} ${SRC_FILES} ${SRC_FILES_ENH} ${SHADER_FILES} ${SHADER_FILES_ENH})
 set_target_properties(${APP_NAME} PROPERTIES OUTPUT_NAME ${VISCOM_APP_NAME})
 set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 17)
-target_include_directories(${APP_NAME} PRIVATE src ${ENH_INCLUDE_DIRS})
-target_link_libraries(${APP_NAME} VISCOMCore ${ENH_LIBS})
+target_include_directories(${APP_NAME} PRIVATE src ${ENH_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS} ${PYTHON_NUMPY_INCLUDE_DIR})
+target_link_libraries(${APP_NAME} VISCOMCore ${ENH_LIBS} ${PYTHON_LIBRARIES})
 
 set(VISCOM_CONFIG_BASE_DIR "../")
 set(VISCOM_CONFIG_PROGRAM_PROPERTIES "../config/${VISCOM_CONFIG_NAME}/propertiesPrecompute.xml")

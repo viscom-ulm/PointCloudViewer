@@ -12,6 +12,8 @@
 #include "enh/gfx/postprocessing/BloomEffect.h"
 #include "enh/gfx/postprocessing/FilmicTMOperator.h"
 #include "enh/gfx/gl/GLTexture.h"
+#include "app/Renderer.h"
+#include "app/PointCloudContainer.h"
 
 #include "core/glfw.h"
 #include <glbinding/gl/gl.h>
@@ -29,18 +31,27 @@ namespace viscom {
         inputDir_{ std::filesystem::canonical(std::filesystem::path(".")).string() }
     {
         inputDirEntries_ = GetDirectoryContent(inputDir_, false);
+        InitOpenGLInternal();
     }
 
     CoordinatorNode::~CoordinatorNode() = default;
 
-    void CoordinatorNode::InitOpenGL()
+    void CoordinatorNode::InitOpenGLInternal()
     {
-        ApplicationNodeImplementation::InitOpenGL();
+        constexpr unsigned int headless_width = 1024;
+        constexpr unsigned int headless_height = 1024;
 
-        if (!singleFile_.empty()) {
-            RenderFileHeadless(singleFile_, false);
-            exit(0);
-        }
+        FrameBufferDescriptor headlessFBODesc{ {
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
+                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } },{} };
+
+        headlessFBO_ = std::make_unique<FrameBuffer>(headless_width, headless_height, headlessFBODesc);
+        deferredHeadlessFBO_ = std::make_unique<FrameBuffer>(headless_width, headless_height, GetDeferredFBODesc());
+        deferredExportHeadlessFBO_ = std::make_unique<FrameBuffer>(headless_width, headless_height, GetDeferredFBODesc());
+        // if (!singleFile_.empty()) {
+        //     RenderFileHeadless(singleFile_, false);
+        //     exit(0);
+        // }
     }
 
     void CoordinatorNode::Draw2D(FrameBuffer& fbo)
@@ -48,31 +59,24 @@ namespace viscom {
         std::vector<std::string> supportedDriveLetters = { "A:/", "B:/", "C:/", "D:/", "E:/", "F:/", "G:/", "H:/" };
         namespace fs = std::filesystem;
 
+        if (hideGUI_) return;
+
         fbo.DrawToFBO([&]() {
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
             ImGui::StyleColorsClassic();
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
-                if (HasMesh()) {
-                    auto renderModel = GetRenderModel();
-                    ImGui::Checkbox("Render Model", &renderModel);
-                    SetRenderModel(renderModel);
-                }
-                // GetDOF()->RenderParameterSliders();
-                // GetToneMapping()->RenderParameterSliders();
-                // GetBloom()->RenderParameterSliders();
-                if (GetPointCloudType() == PCType::MATTE) {
-                    if (ImGui::RadioButton("Global Illumination", GetMatteRenderType() == 0)) SetMatteRenderType(0);
-                    if (ImGui::RadioButton("Matte Albedo", GetMatteRenderType() == 1)) SetMatteRenderType(1);
-                    if (ImGui::RadioButton("Direct Illumination", GetMatteRenderType() == 2)) SetMatteRenderType(2);
-                }
-                else if (GetPointCloudType() == PCType::SUBSURFACE) {
-                    if (ImGui::RadioButton("Global Illumination", GetSubsurfaceRenderType() == 0)) SetSubsurfaceRenderType(0);
-                    if (ImGui::RadioButton("Subsurface Albedo", GetSubsurfaceRenderType() == 1)) SetSubsurfaceRenderType(1);
-                    if (ImGui::RadioButton("Sigma_t'", GetSubsurfaceRenderType() == 2)) SetSubsurfaceRenderType(2);
-                    if (ImGui::RadioButton("Eta", GetSubsurfaceRenderType() == 3)) SetSubsurfaceRenderType(3);
-                    if (ImGui::RadioButton("Direct Illumination", GetSubsurfaceRenderType() == 4)) SetSubsurfaceRenderType(4);
-                }
+                ImGui::InputFloat("Point Size", &GetPointSize(), 0.1f);
+                ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&GetAlpha()));
+                ImGui::ColorEdit3("SigmaT", reinterpret_cast<float*>(&GetSigmaT()));
+                ImGui::InputFloat("Eta", &GetEta());
+                ImGui::InputFloat3("Light Position", reinterpret_cast<float*>(&GetLightPosition()));
+                ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&GetLightColor()));
+                ImGui::InputFloat("Light Multiplicator", &GetLightMultiplicator());
+                ImGui::Spacing();
+                if (ImGui::Button("Release Camera")) GetCameraEnh().ReleaseView();
+                ImGui::Spacing();
+                RendererSelectionGUI();
 
                 ImGui::End();
             }
@@ -116,16 +120,29 @@ namespace viscom {
                 ImGui::EndChild();
 
                 if (!selectedFilename.empty()) {
-                    inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
-                    ImGui::SameLine();
-                    static bool loadModel;
-                    ImGui::Checkbox("Load Model", &loadModel);
-                    if (inputFileSelected_) {
-                        try {
-                            LoadPointCloud(selectedFilename, loadModel);
-                        }
-                        catch (std::invalid_argument e) {
-                            inputFileSelected_ = false;
+                    auto fileExt = fs::path(selectedFilename).extension().string();
+                    if (fileExt == ".obj" || fileExt == ".OBJ") {
+                        if (ImGui::Button("Load Mesh AO")) LoadMesh(pcViewer::PCType::AO, selectedFilename);
+                        ImGui::SameLine();
+                        if (ImGui::Button("Load Mesh GI")) LoadMesh(pcViewer::PCType::MATTE, selectedFilename);
+                        ImGui::SameLine();
+                        if (ImGui::Button("Load Mesh SSS")) LoadMesh(pcViewer::PCType::SUBSURFACE, selectedFilename);
+                    }
+                    else if (fileExt == ".params") {
+                        if (ImGui::Button("Import DNN Results")) LoadParamsFile(selectedFilename);
+                    }
+                    else {
+                        inputFileSelected_ = ImGui::Button("Select File", ImVec2(50, 20));
+                        ImGui::SameLine();
+                        static bool loadModel;
+                        ImGui::Checkbox("Load Model", &loadModel);
+                        if (inputFileSelected_) {
+                            try {
+                                LoadTextFile(selectedFilename, loadModel);
+                            }
+                            catch (std::invalid_argument e) {
+                                inputFileSelected_ = false;
+                            }
                         }
                     }
                 }
@@ -138,6 +155,7 @@ namespace viscom {
             ImGui::StyleColorsClassic();
             if (inputBatchMode_ && ImGui::Begin("Select batch folder", nullptr, ImGuiWindowFlags_MenuBar)) {
                 ImGui::Text(inputDir_.data());
+                ImGui::BeginChild("Scrolling", ImVec2(0.0f, -40.0f));
                 bool skipFiles = false;
                 for (const auto& dl : supportedDriveLetters) {
                     std::error_code ec;
@@ -165,12 +183,15 @@ namespace viscom {
                         }
                     }
                 }
+                ImGui::EndChild();
 
-                bool batchFolderSelect = ImGui::Button("Select Batch Folder", ImVec2(50, 20));
+                if (ImGui::Button("Select (PC)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::POINTCLOUD);
                 ImGui::SameLine();
-                static bool loadModel;
-                ImGui::Checkbox("Load Model", &loadModel);
-                if (batchFolderSelect) RenderFolderHeadless(inputDir_, loadModel);
+                if (ImGui::Button("Select (PConMesh)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::PC_ON_MESH);
+                ImGui::SameLine();
+                if (ImGui::Button("Select (Export)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::MESH); // dont kill me because of this *duckandcover* [9/5/2018 Sebastian Maisch]
+                ImGui::SameLine();
+                if (ImGui::Button("Select (Screen)", ImVec2(100, 20))) RenderFolderHeadless(inputDir_, pcViewer::RenderType::SCREEN);
 
                 ImGui::End();
             }
@@ -188,7 +209,7 @@ namespace viscom {
         if (!pcFilesOnly) content.emplace_back("..");
 
         auto checkPCFile = [](const fs::path& p) { 
-            if (!(p.extension().string() == ".txt" || p.extension().string() == ".TXT")) return false;
+            if (!(p.extension().string() == ".txt" || p.extension().string() == ".TXT" || p.extension().string() == ".obj" || p.extension().string() == ".OBJ" || p.extension().string() == ".params")) return false;
             return true;
         };
 
@@ -201,69 +222,107 @@ namespace viscom {
         return content;
     }
 
-    void CoordinatorNode::RenderFolderHeadless(const std::string& folder, bool loadModel)
+    void CoordinatorNode::RenderFolderHeadless(const std::string& folder, pcViewer::RenderType renderType)
     {
         auto folderContent = GetDirectoryContent(folder, true);
 
-        for (const auto& file : folderContent) RenderFileHeadless(folder + "/" + file, loadModel);
+        namespace fs = std::filesystem;
+        for (const auto& file : folderContent) {
+            RenderFileHeadless(folder + "/" + file, renderType);
+        }
 
         inputBatchMode_ = false;
     }
 
-    void CoordinatorNode::RenderFileHeadless(const std::string& pointCloud, bool loadModel)
+    void CoordinatorNode::RenderFileHeadless(const std::string& pointCloud, pcViewer::RenderType renderType)
     {
-        FrameBufferDescriptor headlessFBODesc{ {
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } },{} };
+        namespace fs = std::filesystem;
+        auto splitFilename = utils::split(fs::path(pointCloud).stem().string(), '_');
+        if (splitFilename[0] == "parameters") return;
+        if (splitFilename.size() < 2) return;
 
-        FrameBuffer fbo(512, 512, headlessFBODesc);
+        bool render = false, renderScreen = false;
+        if (splitFilename[1] == "ao" || splitFilename[1] == "matte" || splitFilename[1] == "subsurface") render = true;
+        if (splitFilename.back() == "export" && splitFilename[splitFilename.size() - 2] != "screenfinal") renderScreen = true;
 
-        FrameBufferDescriptor headlessDefferedFBODesc{ {
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_RGBA8) },
-                FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) } },{} };
-
-        FrameBuffer deferredFBO(fbo.GetWidth(), fbo.GetHeight(), headlessDefferedFBODesc);
+        if (!render && !renderScreen) return;
 
         try {
-            LoadPointCloud(pointCloud, loadModel);
+            if (renderType == pcViewer::RenderType::POINTCLOUD && render) LoadPointCloud(pointCloud, splitFilename, false);
+            else if (renderType == pcViewer::RenderType::PC_ON_MESH && render) LoadPointCloud(pointCloud, splitFilename, true);
+            else if (renderType == pcViewer::RenderType::MESH && render) LoadPointCloud(pointCloud, splitFilename, true);
+            else if (renderType == pcViewer::RenderType::SCREEN && renderScreen) LoadScreenTexture(pointCloud, splitFilename);
+            else return;
+
+            SetMatteRenderType(0);
+            SetSubsurfaceRenderType(0);
+            if (renderType != pcViewer::RenderType::MESH) SetBaseRenderType(renderType);
         }
         catch (std::invalid_argument e) {
             std::cout << e.what() << std::endl;
         }
 
-        fbo.DrawToFBO([this]() {
-            gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
-        });
 
-        deferredFBO.DrawToFBO([this]() {
-            gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
-        });
+        if (renderType == pcViewer::RenderType::MESH) {
+            auto namePrefix = splitFilename[1] + '_' + splitFilename.back();
+            std::ofstream infoOut{ namePrefix + "_info.txt" }, screenPoints{ namePrefix + "_screen_export.txt" }, meshPoints{ namePrefix + "_mesh_export.txt" };
+            std::ofstream pbrtOut{ namePrefix + ".pbrt" };
+            GetCurrentRenderer()->ExportScreenPointCloud(*deferredExportHeadlessFBO_, namePrefix, infoOut, screenPoints, meshPoints);
+            GetCurrentRenderer()->ExportPBRT(namePrefix, glm::uvec2(deferredExportHeadlessFBO_->GetWidth(), deferredExportHeadlessFBO_->GetHeight()), pbrtOut);
+        } else {
+            headlessFBO_->DrawToFBO([this]() {
+                gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+            });
 
-        DrawPointCloud(fbo, deferredFBO, true);
+            if (renderScreen) {
+                SetScreenRenderingComposition(splitFilename[1] == "ao" ? 3 : 2);
+                DrawLoadedScreen(*headlessFBO_);
+            }
+            else {
 
-        auto out_filename = pointCloud.substr(0, pointCloud.size() - 3) + "png";
-        enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
-        enh::GLTexture::SaveTextureToFile(fbo.GetTextures()[0], texDesc, glm::uvec3(fbo.GetWidth(), fbo.GetHeight(), 1), out_filename);
+                deferredHeadlessFBO_->DrawToFBO([this]() {
+                    gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                    gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+                });
 
-        SetMesh(nullptr, 0.0f, 0.0f);
-        SetEnvironmentMap(nullptr);
+                CurrentRendererDrawPointCloud(*headlessFBO_, *deferredHeadlessFBO_, true);
+            }
+
+            auto out_filename = pointCloud.substr(0, pointCloud.size() - 3) + "png";
+            enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
+            enh::GLTexture::SaveTextureToFile(headlessFBO_->GetTextures()[0], texDesc, glm::uvec3(headlessFBO_->GetWidth(), headlessFBO_->GetHeight(), 1), out_filename);
+
+            RenderersSetMesh("", nullptr, 0.0f, 0.0f, true);
+            RenderersSetEnvironmentMap(nullptr);
+            UnselectCurrentRenderer();
+        }
     }
 
-    void CoordinatorNode::LoadPointCloud(const std::string& pointCloud, bool loadModel)
+    void CoordinatorNode::LoadTextFile(const std::string& filename, bool loadModel)
     {
         namespace fs = std::filesystem;
+        auto splitFilename = utils::split(fs::path(filename).stem().string(), '_');
+        if (splitFilename.back() == "export") {
+            if (splitFilename[splitFilename.size() - 2] != "screenfinal") return;
+            LoadScreenTexture(filename, splitFilename);
+        }
+        else LoadPointCloud(filename, splitFilename, loadModel);
+    }
 
-        auto splitFilename = utils::split(fs::path(pointCloud).stem().string(), '_');
+    void CoordinatorNode::LoadPointCloud(const std::string& pointCloud, const std::vector<std::string>& splitFilename, bool loadModel)
+    {
+        namespace fs = std::filesystem;
         if (splitFilename[0] == "parameters") return;
-        if (splitFilename[1] == "ao") LoadPointCloudAO(pointCloud);
-        else if (splitFilename[1] == "matte") LoadPointCloudMatte(pointCloud);
-        else if (splitFilename[1] == "subsurface") LoadPointCloudSubsurface(pointCloud);
+        if (splitFilename[1] == "ao") SelectRenderers(pcViewer::PCType::AO);
+        else if (splitFilename[1] == "matte") SelectRenderers(pcViewer::PCType::MATTE);
+        else if (splitFilename[1] == "subsurface") SelectRenderers(pcViewer::PCType::SUBSURFACE);
         else {
             LOG(WARNING) << "Wrong file format selected.";
             throw std::invalid_argument("Wrong file format selected.");
         }
+
+        RenderersLoadPointCloud(splitFilename[1] + "_" + splitFilename[splitFilename.size() - 1], pointCloud, glm::mat4());
 
         if (loadModel) {
             std::ifstream params_in(inputDir_ + "/parameters_" + splitFilename[1] + ".txt");
@@ -271,7 +330,7 @@ namespace viscom {
             std::getline(params_in, line); // description line...
 
             std::size_t lineCounter = static_cast<std::size_t>(std::atoi(splitFilename[splitFilename.size() - 1].c_str())) + 2;
-            float meshTheta, meshPhi;
+            float meshTheta = 0.0f, meshPhi = 0.0f;
 
             if (splitFilename[1] == "matte") lineCounter -= 20000;
             else if (splitFilename[1] == "subsurface") lineCounter -= 40000;
@@ -285,135 +344,287 @@ namespace viscom {
                 // assert(splitParameters[0] == splitFilename[splitFilename.size() - 1]);
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
+                if (splitFilename[1] != "ao") {
+                    glm::vec3 alpha;
+                    alpha.r = static_cast<float>(std::atof(splitParameters[6].c_str()));
+                    alpha.g = static_cast<float>(std::atof(splitParameters[7].c_str()));
+                    alpha.b = static_cast<float>(std::atof(splitParameters[8].c_str()));
+                    GetAlpha() = alpha;
+                }
+                else {
+                    GetAlpha() = glm::vec3(1.0f);
+                }
+                if (splitFilename[1] == "subsurface") {
+                    glm::vec3 sigmat;
+                    sigmat.r = static_cast<float>(std::atof(splitParameters[9].c_str()));
+                    sigmat.g = static_cast<float>(std::atof(splitParameters[10].c_str()));
+                    sigmat.b = static_cast<float>(std::atof(splitParameters[11].c_str()));
+                    float eta;
+                    eta = static_cast<float>(std::atof(splitParameters[12].c_str()));
+                    GetSigmaT() = sigmat;
+                    GetEta() = eta;
+                }
+                else {
+                    GetSigmaT() = glm::vec3(1.0f);
+                    GetEta() = 1.0f;
+                }
                 break;
             }
 
             auto envMapFilename = inputDir_ + "/" + splitFilename[2];
             for (std::size_t i = 3; i < splitFilename.size() - 3; ++i) envMapFilename += "_" + splitFilename[i];
             envMapFilename += ".hdr";
-            auto meshFilename = inputDir_ + "/../../ShapeNetCore.v2/" + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
-            SetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
-            SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
+            std::string shapeNetCorePath = "/ShapeNetCore.v2/";
+            while (!fs::exists(inputDir_ + shapeNetCorePath)) shapeNetCorePath = "/.." + shapeNetCorePath;
+            auto meshFilename = inputDir_ + shapeNetCorePath + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
+            RenderersSetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
+            // SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
+            RenderersSetMesh(splitFilename[splitFilename.size() - 3] + "-" + splitFilename[splitFilename.size() - 2], GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi, true);
             //SetMesh(GetMeshManager().GetResource("D:/Users/Sebastian Maisch/Documents/dev/deeplearning/ModelNet10/chair/train/chair_0009.off"), 0.0f, 0.0f);
 
         }
         else {
-            SetMesh(nullptr, 0.0f, 0.0f);
-            SetEnvironmentMap(nullptr);
+            RenderersSetMesh("", nullptr, 0.0f, 0.0f, true);
+            RenderersSetEnvironmentMap(nullptr);
         }
+        UpdateBaseRendererType();
     }
 
-    void CoordinatorNode::LoadPointCloudAO(const std::string& pointCloud)
+    void CoordinatorNode::LoadMesh(pcViewer::PCType type, const std::string& meshFilename)
     {
-        std::ifstream pc_in(pointCloud);
-        std::vector<PointCloudPointAO> pointCloudData;
-        ClearRadius();
+        inputFileSelected_ = true;
+        SelectRenderers(type);
+        namespace fs = std::filesystem;
+        fs::path meshPath{ meshFilename };
 
-        std::string line;
-        while (pc_in.good()) {
-            std::getline(pc_in, line);
+        std::string typeStr;
+        if (type == pcViewer::PCType::AO) typeStr = "ao";
+        else if (type == pcViewer::PCType::MATTE) typeStr = "matte";
+        else if (type == pcViewer::PCType::SUBSURFACE) typeStr = "subsurface";
 
-            auto splitPointData = utils::split(line, ',');
-            if (splitPointData.size() < 7) continue;
-
-            pointCloudData.emplace_back();
-            pointCloudData.back().position_.x = static_cast<float>(std::atof(splitPointData[0].c_str()));
-            pointCloudData.back().position_.y = static_cast<float>(std::atof(splitPointData[1].c_str()));
-            pointCloudData.back().position_.z = static_cast<float>(std::atof(splitPointData[2].c_str()));
-            AddToBoundingSphere(pointCloudData.back().position_);
-
-            pointCloudData.back().normal_.x = static_cast<float>(std::atof(splitPointData[3].c_str()));
-            pointCloudData.back().normal_.y = static_cast<float>(std::atof(splitPointData[4].c_str()));
-            pointCloudData.back().normal_.z = static_cast<float>(std::atof(splitPointData[5].c_str()));
-
-            pointCloudData.back().ao_ = static_cast<float>(std::atof(splitPointData[6].c_str()));
+        auto meshPCPath = meshPath.parent_path() / (meshPath.stem().string() + "_" + typeStr + ".txt");
+        if (fs::exists(meshPCPath)) {
+            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), glm::mat4());
         }
 
-        LoadPointCloudGPUAO(pointCloudData);
+        RenderersSetEnvironmentMap(nullptr);
+        RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshFilename), 0.f, 0.f, false);
+        UpdateBaseRendererType();
     }
 
-    void CoordinatorNode::LoadPointCloudMatte(const std::string& pointCloud)
+    void CoordinatorNode::LoadScreenTexture(const std::string& filename, const std::vector<std::string>& splitFilename)
     {
-        std::ifstream pc_in(pointCloud);
-        std::vector<PointCloudPointMatte> pointCloudData;
-        ClearRadius();
+        if (splitFilename[0] == "ao") SelectRenderers(pcViewer::PCType::AO);
+        else if (splitFilename[0] == "matte") SelectRenderers(pcViewer::PCType::MATTE);
+        else if (splitFilename[0] == "subsurface") SelectRenderers(pcViewer::PCType::SUBSURFACE);
 
-        std::string line;
-        while (pc_in.good()) {
-            std::getline(pc_in, line);
+        glm::vec3 camPos, lightPos, lightColor;
+        glm::quat camOrient;
+        float lightMultiplicator = 1.0f;
+        std::string envMapFile;
+        std::size_t screenWidth = 0, screenHeight = 0;
 
-            auto splitPointData = utils::split(line, ',');
-            if (splitPointData.size() < 7) continue;
+        {
+            std::string infoFile = splitFilename[0];
+            for (std::size_t i = 1; i < splitFilename.size() - 2; ++i) infoFile += '_' + splitFilename[i];
+            infoFile += "_info.txt";
+            std::ifstream info_in{ infoFile };
+            std::string line;
 
-            pointCloudData.emplace_back();
-            pointCloudData.back().position_.x = static_cast<float>(std::atof(splitPointData[0].c_str()));
-            pointCloudData.back().position_.y = static_cast<float>(std::atof(splitPointData[1].c_str()));
-            pointCloudData.back().position_.z = static_cast<float>(std::atof(splitPointData[2].c_str()));
-            AddToBoundingSphere(pointCloudData.back().position_);
+            std::getline(info_in, line);
+            auto splitParameters = utils::split(line, ',');
+            camPos.x = static_cast<float>(std::atof(splitParameters[0].c_str()));
+            camPos.y = static_cast<float>(std::atof(splitParameters[1].c_str()));
+            camPos.z = static_cast<float>(std::atof(splitParameters[2].c_str()));
 
-            pointCloudData.back().normal_.x = static_cast<float>(std::atof(splitPointData[3].c_str()));
-            pointCloudData.back().normal_.y = static_cast<float>(std::atof(splitPointData[4].c_str()));
-            pointCloudData.back().normal_.z = static_cast<float>(std::atof(splitPointData[5].c_str()));
+            std::getline(info_in, line);
+            splitParameters = utils::split(line, ',');
+            camOrient.x = static_cast<float>(std::atof(splitParameters[0].c_str()));
+            camOrient.y = static_cast<float>(std::atof(splitParameters[1].c_str()));
+            camOrient.z = static_cast<float>(std::atof(splitParameters[2].c_str()));
+            camOrient.w = static_cast<float>(std::atof(splitParameters[3].c_str()));
 
-            pointCloudData.back().directIllumination_.x = static_cast<float>(std::atof(splitPointData[6].c_str()));
-            pointCloudData.back().directIllumination_.y = static_cast<float>(std::atof(splitPointData[7].c_str()));
-            pointCloudData.back().directIllumination_.z = static_cast<float>(std::atof(splitPointData[8].c_str()));
+            std::getline(info_in, envMapFile);
 
-            pointCloudData.back().albedo_.x = static_cast<float>(std::atof(splitPointData[9].c_str()));
-            pointCloudData.back().albedo_.y = static_cast<float>(std::atof(splitPointData[10].c_str()));
-            pointCloudData.back().albedo_.z = static_cast<float>(std::atof(splitPointData[11].c_str()));
+            std::getline(info_in, line);
+            splitParameters = utils::split(line, ',');
+            lightPos.x = static_cast<float>(std::atof(splitParameters[0].c_str()));
+            lightPos.y = static_cast<float>(std::atof(splitParameters[1].c_str()));
+            lightPos.z = static_cast<float>(std::atof(splitParameters[2].c_str()));
 
-            pointCloudData.back().globalIllumination_.x = static_cast<float>(std::atof(splitPointData[12].c_str()));
-            pointCloudData.back().globalIllumination_.y = static_cast<float>(std::atof(splitPointData[13].c_str()));
-            pointCloudData.back().globalIllumination_.z = static_cast<float>(std::atof(splitPointData[14].c_str()));
+            std::getline(info_in, line);
+            splitParameters = utils::split(line, ',');
+            lightColor.r = static_cast<float>(std::atof(splitParameters[0].c_str()));
+            lightColor.g = static_cast<float>(std::atof(splitParameters[1].c_str()));
+            lightColor.b = static_cast<float>(std::atof(splitParameters[2].c_str()));
+
+            std::getline(info_in, line);
+            lightMultiplicator = static_cast<float>(std::atof(line.c_str()));
+
+            std::getline(info_in, line);
+            screenWidth = static_cast<std::size_t>(std::atoi(splitParameters[0].c_str()));
+            screenHeight = static_cast<std::size_t>(std::atoi(splitParameters[1].c_str()));
         }
 
-        LoadPointCloudGPUMatte(pointCloudData);
+
+        std::vector<glm::vec4> positionsCPU, normalsCPU, albedoCPU, directIlluminationCPU, textureCPU;
+        positionsCPU.resize(screenWidth * screenHeight);
+        normalsCPU.resize(screenWidth * screenHeight);
+        albedoCPU.resize(screenWidth * screenHeight);
+        textureCPU.resize(screenWidth * screenHeight);
+
+        {
+            std::ifstream screen_in{ filename };
+            std::string line;
+
+            std::size_t pixelIndex = 0;
+            while (screen_in.good()) {
+                std::getline(screen_in, line);
+                auto splitParameters = utils::split(line, ',');
+                positionsCPU[pixelIndex].x = static_cast<float>(std::atof(splitParameters[0].c_str()));
+                positionsCPU[pixelIndex].y = static_cast<float>(std::atof(splitParameters[1].c_str()));
+                positionsCPU[pixelIndex].z = static_cast<float>(std::atof(splitParameters[2].c_str()));
+                positionsCPU[pixelIndex].w = 1.0f;
+
+                normalsCPU[pixelIndex].x = static_cast<float>(std::atof(splitParameters[3].c_str()));
+                normalsCPU[pixelIndex].y = static_cast<float>(std::atof(splitParameters[4].c_str()));
+                normalsCPU[pixelIndex].z = static_cast<float>(std::atof(splitParameters[5].c_str()));
+                normalsCPU[pixelIndex].w = 1.0f;
+
+                albedoCPU[pixelIndex].x = static_cast<float>(std::atof(splitParameters[6].c_str()));
+                albedoCPU[pixelIndex].y = static_cast<float>(std::atof(splitParameters[7].c_str()));
+                albedoCPU[pixelIndex].z = static_cast<float>(std::atof(splitParameters[8].c_str()));
+                albedoCPU[pixelIndex].w = 1.0f;
+
+                directIlluminationCPU[pixelIndex].x = static_cast<float>(std::atof(splitParameters[9].c_str()));
+                directIlluminationCPU[pixelIndex].y = static_cast<float>(std::atof(splitParameters[10].c_str()));
+                directIlluminationCPU[pixelIndex].z = static_cast<float>(std::atof(splitParameters[11].c_str()));
+                directIlluminationCPU[pixelIndex].w = 1.0f;
+
+                textureCPU[pixelIndex].x = static_cast<float>(std::atof(splitParameters[12].c_str()));
+                textureCPU[pixelIndex].y = static_cast<float>(std::atof(splitParameters[13].c_str()));
+                textureCPU[pixelIndex].z = static_cast<float>(std::atof(splitParameters[14].c_str()));
+                textureCPU[pixelIndex].w = 1.0f;
+
+                pixelIndex += 1;
+            }
+        }
+
+        enh::TexuturesRAII<5> screenTextures;
+        gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures[0]);
+        gl::glTexImage2D(gl::GL_TEXTURE_2D, 0, gl::GL_RGBA32F, static_cast<gl::GLsizei>(screenWidth), static_cast<gl::GLsizei>(screenHeight), 0, gl::GL_RGBA, gl::GL_FLOAT, positionsCPU.data());
+        gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures[1]);
+        gl::glTexImage2D(gl::GL_TEXTURE_2D, 0, gl::GL_RGBA32F, static_cast<gl::GLsizei>(screenWidth), static_cast<gl::GLsizei>(screenHeight), 0, gl::GL_RGBA, gl::GL_FLOAT, normalsCPU.data());
+        gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures[2]);
+        gl::glTexImage2D(gl::GL_TEXTURE_2D, 0, gl::GL_RGBA32F, static_cast<gl::GLsizei>(screenWidth), static_cast<gl::GLsizei>(screenHeight), 0, gl::GL_RGBA, gl::GL_FLOAT, albedoCPU.data());
+        gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures[3]);
+        gl::glTexImage2D(gl::GL_TEXTURE_2D, 0, gl::GL_RGBA32F, static_cast<gl::GLsizei>(screenWidth), static_cast<gl::GLsizei>(screenHeight), 0, gl::GL_RGBA, gl::GL_FLOAT, directIlluminationCPU.data());
+        gl::glBindTexture(gl::GL_TEXTURE_2D, screenTextures[4]);
+        gl::glTexImage2D(gl::GL_TEXTURE_2D, 0, gl::GL_RGBA32F, static_cast<gl::GLsizei>(screenWidth), static_cast<gl::GLsizei>(screenHeight), 0, gl::GL_RGBA, gl::GL_FLOAT, textureCPU.data());
+        gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
+
+        StartRenderScreen(std::move(screenTextures));
     }
 
-    void CoordinatorNode::LoadPointCloudSubsurface(const std::string& pointCloud)
+    float parseFlt(const std::string& str) {
+        return static_cast<float>(std::atof(str.c_str()));
+    }
+
+    glm::vec3 parseVec3(const std::string& str) {
+        glm::vec3 res;
+        auto splitStr = utils::split(str, ',');
+        res.x = static_cast<float>(std::atof(splitStr[0].c_str()));
+        res.y = static_cast<float>(std::atof(splitStr[1].c_str()));
+        res.z = static_cast<float>(std::atof(splitStr[2].c_str()));
+        return res;
+    }
+
+    glm::uvec2 parseUvec2(const std::string& str) {
+        glm::uvec2 res;
+        auto splitStr = utils::split(str, ',');
+        res.x = static_cast<unsigned int>(std::atoi(splitStr[0].c_str()));
+        res.y = static_cast<unsigned int>(std::atoi(splitStr[1].c_str()));
+        return res;
+    }
+
+    glm::mat4 parseMat4(const std::string& str) {
+        glm::mat4 res;
+        auto splitStr = utils::split(str, ',');
+        res[0][0] = static_cast<float>(std::atof(splitStr[0].c_str()));
+        res[1][0] = static_cast<float>(std::atof(splitStr[1].c_str()));
+        res[2][0] = static_cast<float>(std::atof(splitStr[2].c_str()));
+        res[3][0] = static_cast<float>(std::atof(splitStr[3].c_str()));
+        res[0][1] = static_cast<float>(std::atof(splitStr[4].c_str()));
+        res[1][1] = static_cast<float>(std::atof(splitStr[5].c_str()));
+        res[2][1] = static_cast<float>(std::atof(splitStr[6].c_str()));
+        res[3][1] = static_cast<float>(std::atof(splitStr[7].c_str()));
+        res[0][2] = static_cast<float>(std::atof(splitStr[8].c_str()));
+        res[1][2] = static_cast<float>(std::atof(splitStr[9].c_str()));
+        res[2][2] = static_cast<float>(std::atof(splitStr[10].c_str()));
+        res[3][2] = static_cast<float>(std::atof(splitStr[11].c_str()));
+        res[0][3] = static_cast<float>(std::atof(splitStr[12].c_str()));
+        res[1][3] = static_cast<float>(std::atof(splitStr[13].c_str()));
+        res[2][3] = static_cast<float>(std::atof(splitStr[14].c_str()));
+        res[3][3] = static_cast<float>(std::atof(splitStr[15].c_str()));
+        return res;
+    }
+
+    void CoordinatorNode::LoadParamsFile(const std::string& paramsname)
     {
-        std::ifstream pc_in(pointCloud);
-        std::vector<PointCloudPointSubsurface> pointCloudData;
-        ClearRadius();
+        inputFileSelected_ = true;
+        std::ifstream paramsIn{ paramsname };
+        std::string typeLine, meshFilename, pcFilename, sigmaTStr, etaStr, albedoStr, lightPosStr, lightColorStr, lightMulStr, resStr, viewMatrixStr, projMatrixStr, modelMatrixStr;
+        std::getline(paramsIn, typeLine); //
+        std::getline(paramsIn, meshFilename); //
+        std::getline(paramsIn, pcFilename); //
 
-        std::string line;
-        while (pc_in.good()) {
-            std::getline(pc_in, line);
+        std::getline(paramsIn, sigmaTStr); //
+        std::getline(paramsIn, etaStr); //
+        std::getline(paramsIn, albedoStr); //
+        std::getline(paramsIn, lightPosStr); //
+        std::getline(paramsIn, lightColorStr); //
+        std::getline(paramsIn, lightMulStr); //
+        std::getline(paramsIn, resStr); //
+        std::getline(paramsIn, modelMatrixStr);
+        std::getline(paramsIn, viewMatrixStr);
+        std::getline(paramsIn, projMatrixStr);
 
-            auto splitPointData = utils::split(line, ',');
-            if (splitPointData.size() < 7) continue;
+        if (typeLine == "ao") SelectRenderers(pcViewer::PCType::AO);
+        else if (typeLine == "matte") SelectRenderers(pcViewer::PCType::MATTE);
+        else if (typeLine == "subsurface") SelectRenderers(pcViewer::PCType::SUBSURFACE);
 
-            pointCloudData.emplace_back();
-            pointCloudData.back().position_.x = static_cast<float>(std::atof(splitPointData[0].c_str()));
-            pointCloudData.back().position_.y = static_cast<float>(std::atof(splitPointData[1].c_str()));
-            pointCloudData.back().position_.z = static_cast<float>(std::atof(splitPointData[2].c_str()));
-            AddToBoundingSphere(pointCloudData.back().position_);
+        GetSigmaT() = parseVec3(sigmaTStr);
+        GetEta() = parseFlt(etaStr);
+        GetAlpha() = parseVec3(albedoStr);
+        GetLightPosition() = parseVec3(lightPosStr);
+        GetLightColor() = parseVec3(lightColorStr);
+        GetLightMultiplicator() = parseFlt(lightMulStr);
+        auto res = parseUvec2(resStr);
+        assert(res.x == 1024 && res.y == 1024);
 
-            pointCloudData.back().normal_.x = static_cast<float>(std::atof(splitPointData[3].c_str()));
-            pointCloudData.back().normal_.y = static_cast<float>(std::atof(splitPointData[4].c_str()));
-            pointCloudData.back().normal_.z = static_cast<float>(std::atof(splitPointData[5].c_str()));
+        viewportSize_ = res;
 
-            pointCloudData.back().directIllumination_.x = static_cast<float>(std::atof(splitPointData[6].c_str()));
-            pointCloudData.back().directIllumination_.y = static_cast<float>(std::atof(splitPointData[7].c_str()));
-            pointCloudData.back().directIllumination_.z = static_cast<float>(std::atof(splitPointData[8].c_str()));
+        auto viewMatrix = parseMat4(viewMatrixStr);
+        auto projMatrix = parseMat4(projMatrixStr);
+        auto modelMatrix = parseMat4(modelMatrixStr);
 
-            pointCloudData.back().albedo_.x = static_cast<float>(std::atof(splitPointData[9].c_str()));
-            pointCloudData.back().albedo_.y = static_cast<float>(std::atof(splitPointData[10].c_str()));
-            pointCloudData.back().albedo_.z = static_cast<float>(std::atof(splitPointData[11].c_str()));
+        GetCameraEnh().FixView(viewMatrix, projMatrix);
 
-            pointCloudData.back().sigma_tp_.x = static_cast<float>(std::atof(splitPointData[12].c_str()));
-            pointCloudData.back().sigma_tp_.y = static_cast<float>(std::atof(splitPointData[13].c_str()));
-            pointCloudData.back().sigma_tp_.z = static_cast<float>(std::atof(splitPointData[14].c_str()));
+        namespace fs = std::filesystem;
+        fs::path paramsPath{ paramsname };
+        auto meshPath = paramsPath.parent_path() / meshFilename;
+        auto meshPCPath = paramsPath.parent_path() / pcFilename;
 
-            pointCloudData.back().eta_ = static_cast<float>(std::atof(splitPointData[15].c_str()));
-
-            pointCloudData.back().globalIllumination_.x = static_cast<float>(std::atof(splitPointData[16].c_str()));
-            pointCloudData.back().globalIllumination_.y = static_cast<float>(std::atof(splitPointData[17].c_str()));
-            pointCloudData.back().globalIllumination_.z = static_cast<float>(std::atof(splitPointData[18].c_str()));
+        if (fs::exists(meshPCPath)) {
+            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), modelMatrix);
         }
 
-        LoadPointCloudGPUSubsurface(pointCloudData);
+        if (fs::exists(meshPath)) {
+            RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshPath.string()), modelMatrix, false);
+        }
+
+        RenderersSetEnvironmentMap(nullptr);
+        UpdateBaseRendererType();
     }
 
     bool CoordinatorNode::KeyboardCallback(int key, int scancode, int action, int mods)
@@ -433,6 +644,12 @@ namespace viscom {
             if (action == GLFW_PRESS && mods == GLFW_MOD_CONTROL) {
                 inputBatchMode_ = true;
                 inputFileSelected_ = true;
+                return true;
+            }
+            break;
+        case GLFW_KEY_H:
+            if (action == GLFW_PRESS && mods == GLFW_MOD_CONTROL) {
+                hideGUI_ = !hideGUI_;
                 return true;
             }
             break;

@@ -18,7 +18,6 @@ namespace viscom {
         explicit CoordinatorNode(ApplicationNodeInternal* appNode);
         virtual ~CoordinatorNode() override;
 
-        virtual void InitOpenGL() override;
         virtual void Draw2D(FrameBuffer& fbo) override;
         virtual bool KeyboardCallback(int key, int scancode, int action, int mods) override;
 
@@ -27,13 +26,16 @@ namespace viscom {
         static void SetSingleFile(const std::string& file) { singleFile_ = file; }
 
     private:
-        void RenderFolderHeadless(const std::string& folder, bool loadModel);
-        void RenderFileHeadless(const std::string& pointCloud, bool loadModel);
-        void RenderFileHeadlessToFBO(const std::string& pointCloud, bool loadModel);
-        void LoadPointCloud(const std::string& pointCloud, bool loadModel);
-        void LoadPointCloudAO(const std::string& pointCloud);
-        void LoadPointCloudMatte(const std::string& pointCloud);
-        void LoadPointCloudSubsurface(const std::string& pointCloud);
+        void InitOpenGLInternal();
+
+        void RenderFolderHeadless(const std::string& folder, pcViewer::RenderType renderType);
+        void RenderFileHeadless(const std::string& pointCloud, pcViewer::RenderType renderType);
+        // void RenderFileHeadlessToFBO(const std::string& pointCloud, bool loadModel);
+        void LoadTextFile(const std::string& filename, bool loadModel);
+        void LoadPointCloud(const std::string& pointCloud, const std::vector<std::string>& splitFilename, bool loadModel);
+        void LoadMesh(pcViewer::PCType type, const std::string& meshname);
+        void LoadScreenTexture(const std::string& filename, const std::vector<std::string>& splitFilename);
+        void LoadParamsFile(const std::string& meshname);
 
         /* Holds the input directory. */
         std::string inputDir_;
@@ -57,7 +59,12 @@ namespace viscom {
 
         bool inputFileSelected_ = false;
         bool inputBatchMode_ = false;
+        bool hideGUI_ = false;
 
         static std::string singleFile_;
+
+        std::unique_ptr<FrameBuffer> headlessFBO_;
+        std::unique_ptr<FrameBuffer> deferredHeadlessFBO_;
+        std::unique_ptr<FrameBuffer> deferredExportHeadlessFBO_;
     };
 }

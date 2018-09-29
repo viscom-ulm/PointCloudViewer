@@ -9,7 +9,8 @@ layout(location = 5) in vec3 directIllumination;
 layout(location = 6) in vec3 globalIllumination;
 
 uniform mat4 viewProjection;
-uniform float bbRadius = 10.0f;
+uniform mat4 modelMatrix;
+uniform float pointSize = 1.0f;
 
 out vec3 vertPosition;
 out vec3 vertNormal;
@@ -18,10 +19,11 @@ out vec3 vertDirectIllumination;
 
 void main()
 {
-    gl_Position =  viewProjection * vec4(position, 1.0);
-    gl_PointSize = bbRadius * 50.0f / gl_Position.w;
+    vec4 wPos = modelMatrix * vec4(position, 1.0);
+    gl_Position =  viewProjection * wPos;
+    gl_PointSize = pointSize * 750.0f / gl_Position.w;
 
-    vertPosition = position;
+    vertPosition = wPos.xyz;
     vertNormal = normal;
     vertResult = globalIllumination;
     vertDirectIllumination = directIllumination;

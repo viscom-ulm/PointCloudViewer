@@ -2,19 +2,22 @@
 
 uniform vec3 camPos;
 
-in vec3 vertPosition;
-in vec3 vertNormal;
-in vec3 vertResult;
+in GS_OUT {
+    vec3 position;
+    vec3 normal;
+    vec3 result;
+    vec2 localCoords;
+} ps_in;
 
 out vec4 color;
 
 void main()
 {
-    vec2 p2 = gl_PointCoord.xy * 2.0 - 1.0;
+    vec2 p2 = ps_in.localCoords;
     float p = dot(p2, p2);
     if (p > 1.0) discard;
 
-    if (dot(vertNormal, camPos - vertPosition) < 0) discard;
+    // if (dot(ps_in.normal, camPos - ps_in.position) < 0) discard;
 
     // if (p > 0.8) {
     //     color = vec4(0, 0, 0, 1);
@@ -27,5 +30,5 @@ void main()
     //float w = /*(1.0 / (sigma * sqrt(2 * pi))) */ exp(-0.5 * gexp);
     float w = 1.0;
 
-    color = vec4(w * vertResult, w);
+    color = vec4(w * ps_in.result, w);
 }

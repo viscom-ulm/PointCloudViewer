@@ -18,6 +18,7 @@
 #include "app/CoordinatorNode.h"
 #include "app/WorkerNode.h"
 
+#include "python_fix.h"
 
 int main(int argc, char** argv)
 {
@@ -33,6 +34,21 @@ int main(int argc, char** argv)
 
     LOG(INFO) << "Log created.";
 
+    //////////////////////////////////////////////////////////////////////////
+    // INIT PYTHON
+
+    wchar_t *program = Py_DecodeLocale(argv[0], nullptr);
+    if (program == nullptr) {
+        fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
+        exit(1);
+    }
+    Py_SetProgramName(program);
+
+    Py_Initialize();
+
+    // PYTHON INITIALIZED
+    //////////////////////////////////////////////////////////////////////////
+
     viscom::FWConfiguration config;
     if (argc > 1) config = viscom::LoadConfiguration(argv[1]);
     else config = viscom::LoadConfiguration("framework.cfg");
@@ -47,6 +63,15 @@ int main(int argc, char** argv)
     // Main loop
     LOG(INFO) << "Started Rendering.";
     appNode->Render();
+
+    //////////////////////////////////////////////////////////////////////////
+    // Finalize Python
+
+    if (Py_FinalizeEx() < 0) {
+        exit(120);
+    }
+    PyMem_RawFree(program);
+    //////////////////////////////////////////////////////////////////////////
 
     return 0;
 }

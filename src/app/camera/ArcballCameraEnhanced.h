@@ -31,6 +31,13 @@ namespace viscom::enh {
 
         virtual void SetCameraPosition(const glm::vec3& position) override;
 
+        void FixView(const glm::mat4& view, const glm::mat4& proj);
+        void ReleaseView() { isFixed_ = false; }
+        glm::mat4 GetViewPerspectiveExport() const;
+        glm::mat4 GetViewMatrix() const;
+        glm::mat4 GetViewProjMatrixEnh() const;
+        bool IsFixed() const { return isFixed_; }
+
     private:
         /** Holds the current camera position. */
         glm::vec3 baseCamPos_;
@@ -38,5 +45,9 @@ namespace viscom::enh {
         float mouseWheelDelta_;
         /** Holds the arc-ball used for camera rotation. */
         Arcball camArcball_;
+
+        bool isFixed_ = false;
+        glm::mat4 fixedView_, fixedProj_;
+        glm::vec3 fixedCamPos_;
     };
 }
