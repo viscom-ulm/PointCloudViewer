@@ -127,6 +127,12 @@ namespace viscom::enh {
         return GetViewProjMatrix();
     }
 
+    glm::mat4 ArcballCameraEnhanced::GetProjMatrixEnh(const glm::mat4& nonFixed) const
+    {
+        if (isFixed_) return fixedProj_;
+        return nonFixed;
+    }
+
     glm::vec3 ArcballCameraEnhanced::GetPosition() const noexcept
     {
         if (isFixed_) return fixedCamPos_;

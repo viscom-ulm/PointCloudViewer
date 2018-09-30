@@ -36,6 +36,7 @@ namespace viscom::enh {
         glm::mat4 GetViewPerspectiveExport() const;
         glm::mat4 GetViewMatrix() const;
         glm::mat4 GetViewProjMatrixEnh() const;
+        glm::mat4 GetProjMatrixEnh(const glm::mat4& nonFixed) const;
         bool IsFixed() const { return isFixed_; }
 
     private:

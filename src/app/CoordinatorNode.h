@@ -24,6 +24,7 @@ namespace viscom {
         std::vector<std::string> GetDirectoryContent(const std::string& dir, bool pcFilesOnly) const;
 
         static void SetSingleFile(const std::string& file) { singleFile_ = file; }
+        virtual void SaveImageAllTechniques(const std::string& name) override;
 
     private:
         void InitOpenGLInternal();

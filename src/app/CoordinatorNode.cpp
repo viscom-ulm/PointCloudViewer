@@ -14,6 +14,7 @@
 #include "enh/gfx/gl/GLTexture.h"
 #include "app/Renderer.h"
 #include "app/PointCloudContainer.h"
+#include "app/MeshContainer.h"
 
 #include "core/glfw.h"
 #include <glbinding/gl/gl.h>
@@ -625,6 +626,32 @@ namespace viscom {
 
         RenderersSetEnvironmentMap(nullptr);
         UpdateBaseRendererType();
+    }
+
+    void CoordinatorNode::SaveImageAllTechniques(const std::string& name)
+    {
+        auto currentRenderType = baseRenderType_;
+
+        for (std::size_t i = 0; i < static_cast<std::size_t>(pcViewer::RenderType::SCREEN); ++i) {
+            baseRenderType_ = static_cast<pcViewer::RenderType>(i);
+
+            headlessFBO_->DrawToFBO([this]() {
+                gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+            });
+            deferredHeadlessFBO_->DrawToFBO([this]() {
+                gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
+            });
+
+            CurrentRendererDrawPointCloud(*headlessFBO_, *deferredHeadlessFBO_, true);
+
+            auto out_filename = name + "_" + GetCurrentRenderer()->GetRendererName() +".png";
+            enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
+            enh::GLTexture::SaveTextureToFile(headlessFBO_->GetTextures()[0], texDesc, glm::uvec3(headlessFBO_->GetWidth(), headlessFBO_->GetHeight(), 1), out_filename);
+        }
+
+        baseRenderType_ = currentRenderType;
     }
 
     bool CoordinatorNode::KeyboardCallback(int key, int scancode, int action, int mods)

@@ -106,7 +106,13 @@ namespace pcViewer {
     void HBAORenderer::RenderGUIByType()
     {
         if (ImGui::Button("Export HBAO PBRT")) {
+            glm::uvec2 size{ GetApp()->GetDeferredExportFBO().GetWidth(), GetApp()->GetDeferredExportFBO().GetHeight() };
 
+            std::ofstream pbrtOut{ GetMesh()->GetMeshName() + ".pbrt" };
+            ExportPBRT(GetMesh()->GetMeshName(), size, pbrtOut);
+
+            GetApp()->SaveImageAllTechniques(GetMesh()->GetMeshName());
+            // TODO: export images as well... [9/29/2018 Sebastian Maisch]
         }
     }
 

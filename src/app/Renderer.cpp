@@ -65,7 +65,8 @@ namespace pcViewer {
         light_strength_str << lightStrength.x << " " << lightStrength.y << " " << lightStrength.z;
         img_size_x_str << imgSize.x;
         img_size_y_str << imgSize.y;
-        cam_fov_str << 2.0f * glm::atan(1.0f / appNode_->GetCamera()->GetCentralPerspectiveMatrix()[1][1]) * 180.f / glm::pi<float>();
+        auto projMat = appNode_->GetCameraEnh().GetProjMatrixEnh(appNode_->GetCamera()->GetCentralPerspectiveMatrix());
+        cam_fov_str << 2.0f * glm::atan(1.0f / projMat[1][1]) * 180.f / glm::pi<float>();
 
 
         auto sigmasp = GetAlpha() * GetSigmaT();

@@ -18,7 +18,7 @@
 #include "app/CoordinatorNode.h"
 #include "app/WorkerNode.h"
 
-#include "python_fix.h"
+// #include "python_fix.h"
 
 int main(int argc, char** argv)
 {
@@ -37,14 +37,14 @@ int main(int argc, char** argv)
     //////////////////////////////////////////////////////////////////////////
     // INIT PYTHON
 
-    wchar_t *program = Py_DecodeLocale(argv[0], nullptr);
-    if (program == nullptr) {
-        fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
-        exit(1);
-    }
-    Py_SetProgramName(program);
-
-    Py_Initialize();
+    // wchar_t *program = Py_DecodeLocale(argv[0], nullptr);
+    // if (program == nullptr) {
+    //     fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
+    //     exit(1);
+    // }
+    // Py_SetProgramName(program);
+    // 
+    // Py_Initialize();
 
     // PYTHON INITIALIZED
     //////////////////////////////////////////////////////////////////////////
@@ -67,10 +67,10 @@ int main(int argc, char** argv)
     //////////////////////////////////////////////////////////////////////////
     // Finalize Python
 
-    if (Py_FinalizeEx() < 0) {
-        exit(120);
-    }
-    PyMem_RawFree(program);
+    // if (Py_FinalizeEx() < 0) {
+    //     exit(120);
+    // }
+    // PyMem_RawFree(program);
     //////////////////////////////////////////////////////////////////////////
 
     return 0;

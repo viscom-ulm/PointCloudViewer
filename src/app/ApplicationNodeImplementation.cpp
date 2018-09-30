@@ -43,11 +43,12 @@
 #include "app/comparison/HBAORenderer.h"
 #include "app/comparison/SSGIRenderer.h"
 #include "app/comparison/SSSSSRenderer.h"
+#include "enh/gfx/gl/GLTexture.h"
 
-#include "python_fix.h"
-
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include <numpy/arrayobject.h>
+// #include "python_fix.h"
+// 
+// #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+// #include <numpy/arrayobject.h>
 
 namespace viscom {
 
@@ -112,79 +113,79 @@ namespace viscom {
         mesh_ = std::make_unique<pcViewer::MeshContainer>(this);
 
 
-        {if (_import_array() < 0) { PyErr_Print(); PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import"); return; } }
-        
-        std::array<npy_intp, 2> dims = { 1000, 4 };
+        //{if (_import_array() < 0) { PyErr_Print(); PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import"); return; } }
+        //
+        //std::array<npy_intp, 2> dims = { 1000, 4 };
 
-        std::vector<float> test;
-        constexpr float smallIncr = 0.1f;
-        constexpr float bigIncr = 1.0f;
+        //std::vector<float> test;
+        //constexpr float smallIncr = 0.1f;
+        //constexpr float bigIncr = 1.0f;
 
-        float cVal = 0.0f;
-        for (std::size_t i = 0; i < static_cast<std::size_t>(dims[0]); ++i) {
-            float arrayVal = cVal;
-            for (std::size_t j = 0; j < static_cast<std::size_t>(dims[1]); ++j) {
-                test.push_back(arrayVal);
-                arrayVal += smallIncr;
-            }
-            cVal += bigIncr;
-        }
+        //float cVal = 0.0f;
+        //for (std::size_t i = 0; i < static_cast<std::size_t>(dims[0]); ++i) {
+        //    float arrayVal = cVal;
+        //    for (std::size_t j = 0; j < static_cast<std::size_t>(dims[1]); ++j) {
+        //        test.push_back(arrayVal);
+        //        arrayVal += smallIncr;
+        //    }
+        //    cVal += bigIncr;
+        //}
 
-        auto pyArray = PyArray_SimpleNewFromData(2, dims.data(), NPY_FLOAT, test.data());
+        //auto pyArray = PyArray_SimpleNewFromData(2, dims.data(), NPY_FLOAT, test.data());
 
-        using namespace std::string_literals;
-        auto programName = Resource::FindResourceLocation("python/ptcltest.py", &GetApplication()->GetFramework());
-        auto functionName = "test"s;
+        //using namespace std::string_literals;
+        //auto programName = Resource::FindResourceLocation("python/ptcltest.py", &GetApplication()->GetFramework());
+        //auto functionName = "test"s;
 
-        namespace fs = std::filesystem;
-        fs::path programPath(programName);
-        programPath = fs::absolute(programPath);
+        //namespace fs = std::filesystem;
+        //fs::path programPath(programName);
+        //programPath = fs::absolute(programPath);
 
-        PyObject* sysPath = PySys_GetObject((char*)"path");
-        auto programPyPath = PyUnicode_DecodeFSDefault(programPath.parent_path().string().c_str());
-        PyList_Append(sysPath, programPyPath);
-        Py_DECREF(programPyPath);
+        //PyObject* sysPath = PySys_GetObject((char*)"path");
+        //auto programPyPath = PyUnicode_DecodeFSDefault(programPath.parent_path().string().c_str());
+        //PyList_Append(sysPath, programPyPath);
+        //Py_DECREF(programPyPath);
 
 
 
-        auto pName = PyUnicode_DecodeFSDefault(programPath.stem().string().c_str());
-        /* Error checking of pName left out */
+        //auto pName = PyUnicode_DecodeFSDefault(programPath.stem().string().c_str());
+        ///* Error checking of pName left out */
 
-        auto pModule = PyImport_Import(pName);
-        Py_DECREF(pName);
+        //auto pModule = PyImport_Import(pName);
+        //Py_DECREF(pName);
 
-        if (pModule != nullptr) {
-            auto pFunc = PyObject_GetAttrString(pModule, functionName.c_str());
-            /* pFunc is a new reference */
+        //if (pModule != nullptr) {
+        //    auto pFunc = PyObject_GetAttrString(pModule, functionName.c_str());
+        //    /* pFunc is a new reference */
 
-            if (pFunc && PyCallable_Check(pFunc)) {
-                auto pArgs = PyTuple_New(1);
-                PyTuple_SetItem(pArgs, 0, pyArray);
-                auto pValue = PyObject_CallObject(pFunc, pArgs);
-                Py_DECREF(pArgs);
-                if (pValue != nullptr) {
-                    printf("Result of call: %ld\n", PyLong_AsLong(pValue));
-                    Py_DECREF(pValue);
-                }
-                else {
-                    Py_DECREF(pFunc);
-                    Py_DECREF(pModule);
-                    PyErr_Print();
-                    fprintf(stderr, "Call failed\n");
-                }
-            }
-            else {
-                if (PyErr_Occurred())
-                    PyErr_Print();
-                fprintf(stderr, "Cannot find function \"%s\"\n", functionName.c_str());
-            }
-            Py_XDECREF(pFunc);
-            Py_DECREF(pModule);
-        }
-        else {
-            PyErr_Print();
-            fprintf(stderr, "Failed to load \"%s\"\n", programName.c_str());
-        }
+        //    if (pFunc && PyCallable_Check(pFunc)) {
+        //        auto pArgs = PyTuple_New(1);
+        //        PyTuple_SetItem(pArgs, 0, pyArray);
+        //        auto pValue = PyObject_CallObject(pFunc, pArgs);
+        //        Py_DECREF(pArgs);
+        //        if (pValue != nullptr) {
+        //            printf("Result of call: %ld\n", PyLong_AsLong(pValue));
+        //            Py_DECREF(pValue);
+        //        }
+        //        else {
+        //            Py_DECREF(pFunc);
+        //            Py_DECREF(pModule);
+        //            PyErr_Print();
+        //            fprintf(stderr, "Call failed\n");
+        //        }
+        //    }
+        //    else {
+        //        if (PyErr_Occurred())
+        //            PyErr_Print();
+        //        fprintf(stderr, "Cannot find function \"%s\"\n", functionName.c_str());
+        //    }
+        //    Py_XDECREF(pFunc);
+        //    Py_DECREF(pModule);
+        //}
+        //else {
+        //    PyErr_Print();
+        //    fprintf(stderr, "Failed to load \"%s\"\n", programName.c_str());
+        //}
 
         // Py
     }

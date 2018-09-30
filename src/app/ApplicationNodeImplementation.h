@@ -77,6 +77,8 @@ namespace viscom {
         const FrameBuffer& GetDeferredExportFBO() const { return *deferredExportFBO_; }
         const FWConfiguration* GetConfig() { return &ApplicationNodeBase::GetConfig(); }
 
+        virtual void SaveImageAllTechniques(const std::string& name) {};
+
     protected:
         void InitOpenGLInternal();
         void CleanUpInternal();
@@ -117,6 +119,8 @@ namespace viscom {
         // void SetRenderModel(bool rm) { renderModel_ = rm; }
 
         glm::uvec2 viewportSize_;
+        pcViewer::RenderType baseRenderType_;
+        std::unique_ptr<pcViewer::MeshContainer> mesh_;
 
     private:
         float boundingSphereRadius_ = 0.0f;
@@ -133,9 +137,6 @@ namespace viscom {
 
         std::unique_ptr<enh::TexuturesRAII<5>> screenTexturesPtr_;
 
-        pcViewer::RenderType baseRenderType_;
-
-        std::unique_ptr<pcViewer::MeshContainer> mesh_;
         std::array<std::unique_ptr<pcViewer::BasePointCloudContainer>, 3> pointClouds_;
         pcViewer::BasePointCloudContainer* currentPointCloud_ = nullptr;
         std::array<std::unique_ptr<pcViewer::BaseRenderer>, 4>* currentRenderers_ = nullptr;
