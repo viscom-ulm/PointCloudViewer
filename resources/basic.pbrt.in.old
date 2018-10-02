@@ -1,0 +1,25 @@
+LookAt ${CAM_POS}  # eye
+       0 0 0  # look at point
+       0 1 0    # up vector
+Camera "perspective" "float fov" ${CAM_FOV}
+
+Sampler "halton" "integer pixelsamples" 512
+Integrator "${INTEGRATOR_NAME}"
+Film "image" "string filename" "${PBRT_FN}.png" "integer xresolution" [${XRES}] "integer yresolution" [${YRES}]
+
+WorldBegin
+
+LightSource "point" "rgb I" [${LIGHT_STRENGTH}] "point from" [${LIGHT_POS}]
+
+AttributeBegin
+${MATTE_COMMENT} Material "matte" "rgb Kd" [${MATTE_KD}]
+${SUBSURFACE_COMMENT} Material "subsurface" "rgb sigma_a" [${SUBSURFACE_SIGMAA}] "rgb sigma_s" [${SUBSURFACE_SIGMAPS}] "float g" [0] "float eta" [${SUBSURFACE_ETA}] "float scale" [1]
+  Rotate ${MODEL_THETA} 1 0 0
+  Rotate ${MODEL_PHI} 0 1 0
+#  Scale -10 10 10
+  Translate ${MODEL_TRANSLATE}
+  Scale ${MODEL_SCALE}
+  Shape "assimpmesh" "string filename" ${MODEL_FN}
+AttributeEnd
+
+WorldEnd

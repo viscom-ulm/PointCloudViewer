@@ -11,6 +11,8 @@ uniform vec3 lightColor = vec3(1.0, 1.0, 1.0);
 uniform float lightMultiplicator = 1.0;
 uniform int outputDirectLight = 1;
 
+const int shadowWidth = 0;
+
 in vec3 vertPosition;
 in vec3 vertNormal;
 in vec2 vertTexCoords;
@@ -39,8 +41,8 @@ void main()
         float visibility = 0.0f, cnt = 0.0f;
         vec3 coords = shadowCoords.xyz / shadowCoords.w;
         coords.z += bias;
-        for (int x = -3; x <= 3; ++x) {
-            for (int y = -3; y <= 3; ++y) {
+        for (int x = -shadowWidth; x <= shadowWidth; ++x) {
+            for (int y = -shadowWidth; y <= shadowWidth; ++y) {
                 visibility += textureOffset(shadowMap, coords, ivec2(x,y));
                 cnt += 1.0f;
             }
@@ -51,7 +53,11 @@ void main()
         // float visibility = texture(shadowMap, coords);
         // if (textureProj(shadowMap, shadowCoords.xyw).x < (shadowCoords.z) / shadowCoords.w) visibility = 0.0;
 
-        directIllumination = vec4(visibility * nDotL * lightColor * lightMultiplicator, 1.0);
+        vec3 t = dFdx(position.xyz);
+        vec3 b = dFdy(position.xyz);
+        float d = length(lightPos - position.xyz);
+        // directIllumination = vec4(visibility * nDotL * lightColor * lightMultiplicator / (d * d), length(cross(t, b)));
+        directIllumination = vec4(visibility * nDotL * lightColor * lightMultiplicator / (d * d), 1.0f);
         // directIllumination = vec4(textureProj(shadowMap, shadowCoords.xyw).xyz, (shadowCoords.z) / shadowCoords.w);
     }
 }

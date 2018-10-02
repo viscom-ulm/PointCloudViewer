@@ -24,7 +24,7 @@ namespace pcViewer {
     protected:
         virtual void DrawPointCloudPoints(const glm::mat4& MVP, const glm::vec3& camPos, bool batched) override;
         virtual void RenderGUIByType() override;
-        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
+        // virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
 
     private:
         /** Holds the shader program for drawing matte results. */

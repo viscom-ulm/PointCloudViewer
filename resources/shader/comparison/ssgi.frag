@@ -1,9 +1,4 @@
 #version 450
-// This is a HBAO-Shader for OpenGL, based upon nvidias directX implementation
-// supplied in their SampleSDK available from nvidia.com
-// The slides describing the implementation is available at
-// http://www.nvidia.co.uk/object/siggraph-2008-HBAO.html
-
 
 const float PI = 3.14159265;
 
@@ -13,8 +8,8 @@ uniform sampler2D materialColorTexture;
 uniform sampler2D directIlluminationTexture;
 uniform vec3 camPos;
 
-const int kernelSize = 10;
-const int radiusi = 20;
+const int kernelSize = 5;
+const int radiusi = 5;
 
 in vec2 texCoord;
 
@@ -41,7 +36,7 @@ void main(void)
         for (int y = -kernelSize; y <= kernelSize; ++y) {
             if (x == 0 && y == 0) continue;
 
-            float radius = 10 * radiusi / position.z;
+            float radius = radiusi;// / position.z;
 
             vec4 pMask = textureOffset(positionTexture, texCoord, ivec2(radius * x, radius * y));
             if (pMask.a == 0.0f) continue;
@@ -49,6 +44,8 @@ void main(void)
             vec3 p = pMask.xyz;
             vec3 n = normalize(textureOffset(normalTexture, texCoord, ivec2(radius * x, radius * y)).rgb);
 
+            vec4 IsArea = textureOffset(directIlluminationTexture, texCoord, ivec2(radius * x, radius * y));
+            vec3 Is = IsArea.rgb;
             vec3 dir = p - position;
             float d = max(1, length(dir));
             rmax = max(rmax, length(dir));
@@ -60,22 +57,25 @@ void main(void)
             vec3 b = dFdy(p);
             // float As = radius * radius * length(cross(t, b));
             // float As = (radiusi * radiusi) / (kSize * kSize);
-            float Afact = clamp(dot(n, normalize(camPos - p)), 0.1, 1.0);
+            float A = 1.0f;
+            // float Ap = IsArea.a;
+            float Ap = A / clamp(dot(n, normalize(camPos - p)), 0.2, 1.0);
             // As /= Afact;
 
-            vec3 Is = textureOffset(directIlluminationTexture, texCoord, ivec2(radius * x, radius * y)).rgb;
             vec3 Cs = textureOffset(materialColorTexture, texCoord, ivec2(radius * x, radius * y)).rgb;
-            Lind += (Is * Cs * costhetas * costhetar) / (Afact * d * d);
+            Lind += (Is * Cs * Ap * costhetas * costhetar) / (PI * d * d + Ap);
             N += 1.0f;
         }
     }
 
-    float As = (rmax * rmax) / N;
+    // float As = (rmax * rmax) / N;
+    float As = 2.0f * PI / N;
 
     // Lind = vec3(0);
     vec3 I = texture(directIlluminationTexture, texCoord).rgb;
     vec3 C = texture(materialColorTexture, texCoord).rgb;
     vec3 L = (As * Lind) + (I * C) / PI;
+    // L = (As * Lind);
 
     ssgi = vec4(L, 1);
 }

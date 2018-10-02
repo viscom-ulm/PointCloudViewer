@@ -24,7 +24,7 @@ namespace pcViewer {
     protected:
         virtual void DrawPointCloudDistanceSum(const glm::mat4& VP, const glm::mat4& M, const FrameBuffer& deferredFBO) override;
         virtual void RenderGUIByType() override;
-        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
+        // virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
 
     private:
         /** Holds the program for summation of distances. */

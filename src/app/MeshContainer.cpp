@@ -24,9 +24,9 @@ namespace pcViewer {
         deferredProgram_ = appNode->GetGPUProgramManager().GetResource("deferredMesh", std::vector<std::string>{ "deferredMesh.vert", "deferredMesh.frag" });
         deferredUniformLocations_ = deferredProgram_->GetUniformLocations({ "viewProjection", "camPos", "sigmat", "eta", "lightPos", "lightColor", "lightMultiplicator", "outputDirectLight", "doExport", "albedo", "depthBiasVP", "shadowMap" });
 
-        pointCloudOutputSSBO_ = std::make_unique<enh::ShaderBufferObject>("pointCloudOutput", appNode_->GetSSBOBindingPoints(), true);
-        appNode_->GetSSBOBindingPoints()->BindBufferBlock(deferredProgram_->getProgramId(), "pointCloudOutput");
-        pointCloudOutputSSBO_->BindBuffer();
+        // pointCloudOutputSSBO_ = std::make_unique<enh::ShaderBufferObject>("pointCloudOutput", appNode_->GetSSBOBindingPoints(), true);
+        // appNode_->GetSSBOBindingPoints()->BindBufferBlock(deferredProgram_->getProgramId(), "pointCloudOutput");
+        // pointCloudOutputSSBO_->BindBuffer();
 
         FrameBufferDescriptor smDesc{ {FrameBufferTextureDescriptor{ static_cast<GLenum>(gl::GL_DEPTH_COMPONENT32F) }}, {} };
         shadowMap_ = std::make_unique<FrameBuffer>(1024, 1024, smDesc);
@@ -43,37 +43,48 @@ namespace pcViewer {
 
     MeshContainer::~MeshContainer() = default;
 
-    void MeshContainer::SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale)
+
+    void MeshContainer::ResetContainer(const std::string& meshName)
     {
-        theta_ = theta;
-        phi_ = phi;
+        meshName_ = meshName;
+        meshEntries_.clear();
+    }
+
+    void MeshContainer::AddMesh(const MeshContainerEntryInfo& meshInfo, float theta, float phi, bool doRescale)
+    {
+        // theta_ = theta;
+        // phi_ = phi;
         auto mm = glm::rotate(glm::mat4(1.0f), theta, glm::vec3(1.0f, 0.0f, 0.0f));
         mm = mm * glm::rotate(glm::mat4(1.0f), phi, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        SetMesh(meshName, mesh, mm, doRescale);
+        AddMesh(meshInfo, mm, doRescale);
     }
     
-    void MeshContainer::SetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& meshModel, bool doRescale)
+    void MeshContainer::AddMesh(const MeshContainerEntryInfo& meshInfo, const glm::mat4& meshModel, bool doRescale)
     {
-        meshName_ = meshName;
-        mesh_ = std::move(mesh);
-        meshModel_ = meshModel;
+        meshEntries_.push_back(MeshContainerEntry{});
+        auto& meshEntry = meshEntries_.back();
+
+        meshEntry.info_ = meshInfo;
+        meshEntry.meshModel_ = meshModel;
         if (doRescale) {
             glm::mat4 modelMatrix(10.0f);
-            meshModel_ = meshModel_ * modelMatrix;
+            modelMatrix[3][3] = 1.0f;
+            meshEntry.meshModel_ = meshEntry.meshModel_ * modelMatrix;
         }
 
-        if (!mesh_) {
-            meshRenderable_ = nullptr;
-            transformedPointCloud_.clear();
+        if (!meshEntry.info_.mesh_) {
+            meshEntry.meshRenderable_ = nullptr;
+            meshEntry.meshRenderableSM_ = nullptr;
+            // transformedPointCloud_.clear();
             return;
         }
 
-        meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), deferredProgram_.get());
-        meshRenderableSM_ = enh::MeshRenderable::create<SimpleMeshVertex>(mesh_.get(), shadowMapProgram_.get());
+        meshEntry.meshRenderable_ = enh::MeshRenderable::create<SimpleMeshVertex>(meshEntry.info_.mesh_.get(), deferredProgram_.get());
+        meshEntry.meshRenderableSM_ = enh::MeshRenderable::create<SimpleMeshVertex>(meshEntry.info_.mesh_.get(), shadowMapProgram_.get());
 
-        transformedPointCloud_.resize(mesh_->GetVertices().size());
-        pointCloudOutputSSBO_->GetBuffer()->InitializeData(transformedPointCloud_);
+        // transformedPointCloud_.resize(mesh_->GetVertices().size());
+        // pointCloudOutputSSBO_->GetBuffer()->InitializeData(transformedPointCloud_);
     }
 
     void MeshContainer::DrawMeshDeferred(bool doDirectLighting) const
@@ -83,14 +94,18 @@ namespace pcViewer {
 
     void MeshContainer::DrawShadowMap()
     {
-        auto meshBB = mesh_->GetRootNode()->GetBoundingBox();
-        meshBB.Transform(meshModel_);
+        if (meshEntries_.empty()) return;
+        auto meshBB = meshEntries_[0].info_.mesh_->GetRootNode()->GetBoundingBox();
+        meshBB.Transform(meshEntries_[0].meshModel_);
+
         glm::vec3 center = 0.5f * (meshBB.GetMin() + meshBB.GetMax());
         glm::vec3 lightPos = const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightPosition();
         float radius = 0.5f * glm::length(meshBB.GetMin() - meshBB.GetMax());
         float distance = glm::length(center - lightPos);
+        float sinFOV = radius / distance;
+        if (glm::abs(sinFOV) > 1.0f) sinFOV = 1.0f;
 
-        float fovHalf = glm::asin(radius / glm::length(center - lightPos));
+        float fovHalf = glm::asin(sinFOV);
 
         auto lightView = glm::lookAt(lightPos, center, glm::vec3{ 0.0f, 1.0f, 0.0f });
         auto lightProj = glm::perspectiveFov(2.0f * fovHalf, 1024.0f, 1024.0f, distance - radius, distance + radius);
@@ -101,7 +116,10 @@ namespace pcViewer {
             gl::glClear(gl::GL_DEPTH_BUFFER_BIT);
             gl::glUseProgram(shadowMapProgram_->getProgramId());
             gl::glUniformMatrix4fv(shadowMapUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(lightViewProj_));
-            meshRenderableSM_->Draw(meshModel_);
+
+            for (const auto& mesh : meshEntries_) {
+                mesh.meshRenderableSM_->Draw(mesh.meshModel_);
+            }
         });
         gl::glDisable(gl::GL_POLYGON_OFFSET_FILL);
 
@@ -111,9 +129,9 @@ namespace pcViewer {
         gl::glEnable(gl::GL_CULL_FACE);
     }
 
-    const std::string& MeshContainer::GetMeshFilename() const
+    const std::string& MeshContainer::GetMeshFilename(std::size_t i) const
     {
-        return mesh_->GetId();
+        return meshEntries_[i].info_.mesh_->GetId();
     }
 
     void MeshContainer::DrawMeshDeferred(bool doDirectLighting, bool doExport) const
@@ -137,20 +155,26 @@ namespace pcViewer {
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
         gl::glUniform3fv(deferredUniformLocations_[1], 1, glm::value_ptr(appNode_->GetCameraEnh().GetPosition()));
-        gl::glUniform3fv(deferredUniformLocations_[2], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetSigmaT()));
-        gl::glUniform1f(deferredUniformLocations_[3], const_cast<const ApplicationNodeImplementation*>(appNode_)->GetEta());
         gl::glUniform3fv(deferredUniformLocations_[4], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightPosition()));
         gl::glUniform3fv(deferredUniformLocations_[5], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightColor()));
         gl::glUniform1f(deferredUniformLocations_[6], const_cast<const ApplicationNodeImplementation*>(appNode_)->GetLightMultiplicator());
         gl::glUniform1i(deferredUniformLocations_[7], doDirectLighting ? 1 : 0);
         gl::glUniform1i(deferredUniformLocations_[8], doExport ? 1 : 0);
-        gl::glUniform3fv(deferredUniformLocations_[9], 1, glm::value_ptr(const_cast<const ApplicationNodeImplementation*>(appNode_)->GetAlpha()));
         gl::glUniformMatrix4fv(deferredUniformLocations_[10], 1, gl::GL_FALSE, glm::value_ptr(lightBiasVP));
 
         gl::glActiveTexture(gl::GL_TEXTURE2);
         gl::glBindTexture(gl::GL_TEXTURE_2D, shadowMap_->GetTextures()[0]);
         gl::glUniform1i(deferredUniformLocations_[11], 2);
-        meshRenderable_->Draw(meshModel_);
+
+        for (const auto& mesh : meshEntries_) {
+            gl::glUniform3fv(deferredUniformLocations_[2], 1, glm::value_ptr(mesh.info_.sigmat_));
+            gl::glUniform1f(deferredUniformLocations_[3], mesh.info_.eta_);
+            gl::glUniform3fv(deferredUniformLocations_[9], 1, glm::value_ptr(mesh.info_.albedo_));
+
+            mesh.meshRenderable_->Draw(mesh.meshModel_);
+        }
+
+        
 
         gl::glBindBuffer(gl::GL_ARRAY_BUFFER, 0);
         gl::glBindVertexArray(0);
@@ -159,21 +183,21 @@ namespace pcViewer {
         gl::glEnable(gl::GL_CULL_FACE);
     }
 
-    void MeshContainer::DrawMeshDeferredAndExport(bool doDirectLighting)
-    {
-        DrawMeshDeferred(doDirectLighting, true);
+    // void MeshContainer::DrawMeshDeferredAndExport(bool doDirectLighting)
+    // {
+    //     DrawMeshDeferred(doDirectLighting, true);
+    // 
+    //     gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
+    //     pointCloudOutputSSBO_->GetBuffer()->DownloadData(transformedPointCloud_);
+    // }
 
-        gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
-        pointCloudOutputSSBO_->GetBuffer()->DownloadData(transformedPointCloud_);
-    }
-
-    const std::vector<glm::vec3>& MeshContainer::GetPositions() const
-    {
-        return mesh_->GetVertices();
-    }
-
-    const std::vector<glm::vec3>& MeshContainer::GetNormals() const
-    {
-        return mesh_->GetNormals();
-    }
+    // const std::vector<glm::vec3>& MeshContainer::GetPositions() const
+    // {
+    //     return mesh_->GetVertices();
+    // }
+    // 
+    // const std::vector<glm::vec3>& MeshContainer::GetNormals() const
+    // {
+    //     return mesh_->GetNormals();
+    // }
 }

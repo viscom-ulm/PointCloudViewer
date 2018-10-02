@@ -73,14 +73,28 @@ namespace pcViewer {
         // GetMesh()->DrawMeshDeferredAndExport(true);
     }
 
-    void SSGIRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    // void SSGIRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    // {
+    //     throw std::runtime_error("ExportScreenPointCloudMesh: Not implemented!!");
+    // }
+
+    void SSGIRenderer::RenderGUIByType()
     {
-        throw std::runtime_error("ExportScreenPointCloudMesh: Not implemented!!");
+        if (ImGui::Button("Export SSGI PBRT")) {
+            glm::uvec2 size{ GetApp()->GetDeferredExportFBO().GetWidth(), GetApp()->GetDeferredExportFBO().GetHeight() };
+
+            auto outputName = GetMesh()->GetMeshName() + "_gi";
+            std::ofstream pbrtOut{ outputName + ".pbrt" };
+            std::ofstream pbrtOut_do{ outputName + "_direct_only.pbrt" };
+            ExportPBRT(outputName + "_pbrt", size, pbrtOut, pbrtOut_do);
+
+            GetApp()->SaveImageAllTechniques(outputName);
+        }
     }
 
-    void SSGIRenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
-    {
-        throw std::runtime_error("ExportScreenPointCloudScreen: Not implemented!!");
-    }
+    // void SSGIRenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
+    // {
+    //     throw std::runtime_error("ExportScreenPointCloudScreen: Not implemented!!");
+    // }
 
 }

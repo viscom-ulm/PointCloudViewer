@@ -30,37 +30,37 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetSubsurfaceRenderType() == 4)) GetApp()->SetSubsurfaceRenderType(4);
     }
 
-    void SSSMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
-    {
-        std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
-        std::vector<glm::vec4> screenScattering;
-        screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenNormals.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenAlbedo.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenScattering.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenDirectIllumination.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-
-        auto pboPos = CopyTextureToPixelBuffer3(fbo, 0);
-        auto pboNormal = CopyTextureToPixelBuffer3(fbo, 1);
-        auto pboAlbedo = CopyTextureToPixelBuffer3(fbo, 2);
-        auto pboScattering = CopyTextureToPixelBuffer4(fbo, 3);
-        auto pboDirectIllumination = CopyTextureToPixelBuffer3(fbo, 4);
-
-        gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
-
-        CopyPBOToVector3(pboPos, screenPositions);
-        CopyPBOToVector3(pboNormal, screenNormals);
-        CopyPBOToVector3(pboAlbedo, screenAlbedo);
-        CopyPBOToVector4(pboScattering, screenScattering);
-        CopyPBOToVector3(pboDirectIllumination, screenDirectIllumination);
-
-        for (std::size_t i = 0; i < screenPositions.size(); ++i) {
-            screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','
-                << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << ','
-                << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b << ','
-                << screenScattering[i].r << ',' << screenScattering[i].g << ',' << screenScattering[i].b << ',' << screenScattering[i].a << ','
-                << screenDirectIllumination[i].r << ',' << screenDirectIllumination[i].g << ',' << screenDirectIllumination[i].b << '\n';
-        }
-    }
+    // void SSSMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
+    // {
+    //     std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
+    //     std::vector<glm::vec4> screenScattering;
+    //     screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenNormals.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenAlbedo.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenScattering.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenDirectIllumination.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    // 
+    //     auto pboPos = CopyTextureToPixelBuffer3(fbo, 0);
+    //     auto pboNormal = CopyTextureToPixelBuffer3(fbo, 1);
+    //     auto pboAlbedo = CopyTextureToPixelBuffer3(fbo, 2);
+    //     auto pboScattering = CopyTextureToPixelBuffer4(fbo, 3);
+    //     auto pboDirectIllumination = CopyTextureToPixelBuffer3(fbo, 4);
+    // 
+    //     gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
+    // 
+    //     CopyPBOToVector3(pboPos, screenPositions);
+    //     CopyPBOToVector3(pboNormal, screenNormals);
+    //     CopyPBOToVector3(pboAlbedo, screenAlbedo);
+    //     CopyPBOToVector4(pboScattering, screenScattering);
+    //     CopyPBOToVector3(pboDirectIllumination, screenDirectIllumination);
+    // 
+    //     for (std::size_t i = 0; i < screenPositions.size(); ++i) {
+    //         screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','
+    //             << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << ','
+    //             << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b << ','
+    //             << screenScattering[i].r << ',' << screenScattering[i].g << ',' << screenScattering[i].b << ',' << screenScattering[i].a << ','
+    //             << screenDirectIllumination[i].r << ',' << screenDirectIllumination[i].g << ',' << screenDirectIllumination[i].b << '\n';
+    //     }
+    // }
 
 }

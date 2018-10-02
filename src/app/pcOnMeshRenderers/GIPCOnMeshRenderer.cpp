@@ -49,32 +49,32 @@ namespace pcViewer {
         if (ImGui::RadioButton("Direct Illumination", GetApp()->GetMatteRenderType() == 2)) GetApp()->SetMatteRenderType(2);
     }
 
-    void GIPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
-    {
-        std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
-        screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenNormals.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenAlbedo.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-        screenDirectIllumination.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
-
-        auto pboPos = CopyTextureToPixelBuffer3(fbo, 0);
-        auto pboNormal = CopyTextureToPixelBuffer3(fbo, 1);
-        auto pboAlbedo = CopyTextureToPixelBuffer3(fbo, 2);
-        auto pboDirectIllumination = CopyTextureToPixelBuffer3(fbo, 4);
-
-        gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
-
-        CopyPBOToVector3(pboPos, screenPositions);
-        CopyPBOToVector3(pboNormal, screenNormals);
-        CopyPBOToVector3(pboAlbedo, screenAlbedo);
-        CopyPBOToVector3(pboDirectIllumination, screenDirectIllumination);
-
-        for (std::size_t i = 0; i < screenPositions.size(); ++i) {
-            screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','
-                << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << ','
-                << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b << ','
-                << screenDirectIllumination[i].r << ',' << screenDirectIllumination[i].g << ',' << screenDirectIllumination[i].b << '\n';
-        }
-    }
+    // void GIPCOnMeshRenderer::ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const
+    // {
+    //     std::vector<glm::vec3> screenPositions, screenNormals, screenAlbedo, screenDirectIllumination;
+    //     screenPositions.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenNormals.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenAlbedo.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    //     screenDirectIllumination.resize(static_cast<std::size_t>(fbo.GetWidth()) * fbo.GetHeight());
+    // 
+    //     auto pboPos = CopyTextureToPixelBuffer3(fbo, 0);
+    //     auto pboNormal = CopyTextureToPixelBuffer3(fbo, 1);
+    //     auto pboAlbedo = CopyTextureToPixelBuffer3(fbo, 2);
+    //     auto pboDirectIllumination = CopyTextureToPixelBuffer3(fbo, 4);
+    // 
+    //     gl::glMemoryBarrier(gl::GL_ALL_BARRIER_BITS);
+    // 
+    //     CopyPBOToVector3(pboPos, screenPositions);
+    //     CopyPBOToVector3(pboNormal, screenNormals);
+    //     CopyPBOToVector3(pboAlbedo, screenAlbedo);
+    //     CopyPBOToVector3(pboDirectIllumination, screenDirectIllumination);
+    // 
+    //     for (std::size_t i = 0; i < screenPositions.size(); ++i) {
+    //         screenPoints << screenPositions[i].x << ',' << screenPositions[i].y << ',' << screenPositions[i].z << ','
+    //             << screenNormals[i].x << ',' << screenNormals[i].y << ',' << screenNormals[i].z << ','
+    //             << screenAlbedo[i].r << ',' << screenAlbedo[i].g << ',' << screenAlbedo[i].b << ','
+    //             << screenDirectIllumination[i].r << ',' << screenDirectIllumination[i].g << ',' << screenDirectIllumination[i].b << '\n';
+    //     }
+    // }
 
 }

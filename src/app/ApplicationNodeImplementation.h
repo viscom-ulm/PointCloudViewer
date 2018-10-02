@@ -25,6 +25,8 @@ namespace pcViewer {
     class BaseRenderer;
     class BasePointCloudContainer;
     class MeshContainer;
+
+    struct MeshContainerEntryInfo;
 }
 
 namespace viscom {
@@ -54,9 +56,9 @@ namespace viscom {
         const glm::vec3& GetLightPosition() const { return lightPos_; }
         const glm::vec3& GetLightColor() const { return lightColor_; }
         float GetLightMultiplicator() const { return lightMultiplicator_; }
-        const glm::vec3& GetSigmaT() const { return sigmaT_; }
-        const glm::vec3& GetAlpha() const { return alpha_; }
-        float GetEta() const { return eta_; }
+        // const glm::vec3& GetSigmaT() const { return sigmaT_; }
+        // const glm::vec3& GetAlpha() const { return alpha_; }
+        // float GetEta() const { return eta_; }
         int GetMatteRenderType() const { return matteRenderType_; }
         int GetSubsurfaceRenderType() const { return subsurfaceRenderType_; }
         int GetCompositeType() const { return compositeType_; }
@@ -89,9 +91,9 @@ namespace viscom {
         glm::vec3& GetLightPosition() { return lightPos_; }
         glm::vec3& GetLightColor() { return lightColor_; }
         float& GetLightMultiplicator() { return lightMultiplicator_; }
-        glm::vec3& GetAlpha() { return alpha_; }
-        glm::vec3& GetSigmaT() { return sigmaT_; }
-        float& GetEta() { return eta_; }
+        // glm::vec3& GetAlpha() { return alpha_; }
+        // glm::vec3& GetSigmaT() { return sigmaT_; }
+        // float& GetEta() { return eta_; }
 
         void SelectRenderers(pcViewer::PCType type);
         void UnselectCurrentRenderer() { currentRenderers_ = nullptr; };
@@ -100,8 +102,11 @@ namespace viscom {
         void SetScreenRenderingComposition(int comp) { screenRenderingComposition_ = comp; }
 
         void RenderersLoadPointCloud(const std::string& pointCloudName, const std::string& pointCloud, const glm::mat4& modelMatrix);
-        void RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale);
-        void RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& modelMatrix, bool doRescale);
+
+        void RenderersResetMeshes(const std::string& meshName);
+        void RenderersAddMesh(const pcViewer::MeshContainerEntryInfo& meshInfo, float theta, float phi, bool doRescale);
+        void RenderersAddMesh(const pcViewer::MeshContainerEntryInfo& meshInfo, const glm::mat4& modelMatrix, bool doRescale);
+
         void RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap);
         void CurrentRendererDrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const;
         void DrawLoadedScreen(const FrameBuffer& fbo) const;
@@ -126,8 +131,8 @@ namespace viscom {
         float boundingSphereRadius_ = 0.0f;
         float distancePower_ = 2.0f;
         float pointSize_ = 1.0f;
-        glm::vec3 alpha_ = glm::vec3{ 1.0f}, sigmaT_ = glm::vec3{ 1.0f };
-        float eta_ = 1.0f;
+        // glm::vec3 alpha_ = glm::vec3{ 1.0f}, sigmaT_ = glm::vec3{ 1.0f };
+        // float eta_ = 1.0f;
         glm::vec3 lightPos_ = glm::vec3{ 10.0f, 0.0f, 0.0f };
         glm::vec3 lightColor_ = glm::vec3{ 1.0f };
         float lightMultiplicator_ = 1.0f;

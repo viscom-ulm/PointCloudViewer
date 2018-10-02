@@ -26,16 +26,42 @@ namespace pcViewer {
 
         virtual bool IsAmbientOcclustion() const { return false; }
 
-        virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const override;
-        virtual void RenderGUIByType() override {};
-        virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
+        // virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const override;
+        virtual void RenderGUIByType() override;
+        // virtual void ExportScreenPointCloudScreen(const FrameBuffer& fbo, const std::string& namePrefix, std::ostream& screenPoints) const override;
 
     private:
-        /** Holds the program for final rendering. */
-        std::unique_ptr<FullscreenQuad> hbaoQuad_;
-        /** Holds the uniform bindings for final rendering. */
-        std::vector<gl::GLint> hbaoUniformLocations_;
+        struct DiffusionParams {
+            float sigmat_ = 0.0f;
+            float rho_ = 0.0f;
+            float sigmaa_ = 0.0f;
+            float sigmas_ = 0.0f;
 
-        viscom::enh::TextureRAII noiseTexture_;
+            float D_ = 0.0f, A_ = 0.0f;
+            float sigma_tr_ = 0.0f;
+            float zb_ = 0.0f;
+            float cPhi_ = 0.0f, cE_ = 0.0f;
+        };
+
+        void RecalculateKernel(bool force);
+
+        float PBD(float r, const DiffusionParams& p) const;
+        float GetDipoleValue(float r, float l, const DiffusionParams& p) const;
+        float ComputeSingleScattering(float r, const DiffusionParams& p) const;
+        float ComputeSingleScatteringSample(float r, float ti, const DiffusionParams& p) const;
+
+        /** Holds the program for final rendering. */
+        std::unique_ptr<FullscreenQuad> s5Quad_;
+        /** Holds the uniform bindings for final rendering. */
+        std::vector<gl::GLint> s5UniformLocations_;
+
+        float maxOffsetMm_ = 1.0f;
+        glm::vec3 sigmat_, alpha_;
+
+        float eta_ = 0.0f;
+
+        std::array<DiffusionParams, 3> diffParams_;
+
+        viscom::enh::TextureRAII kernelTexture_;
     };
 }

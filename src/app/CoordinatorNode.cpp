@@ -68,9 +68,11 @@ namespace viscom {
             if (inputFileSelected_ && !inputBatchMode_ && ImGui::Begin("", nullptr)) {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
                 ImGui::InputFloat("Point Size", &GetPointSize(), 0.1f);
-                ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&GetAlpha()));
-                ImGui::ColorEdit3("SigmaT", reinterpret_cast<float*>(&GetSigmaT()));
-                ImGui::InputFloat("Eta", &GetEta());
+                if (mesh_ && *mesh_) {
+                    ImGui::InputFloat3("Albedo", reinterpret_cast<float*>(&mesh_->GetMesh(0).info_.albedo_));
+                    ImGui::InputFloat3("SigmaT", reinterpret_cast<float*>(&mesh_->GetMesh(0).info_.sigmat_));
+                    ImGui::InputFloat("Eta", &mesh_->GetMesh(0).info_.eta_);
+                }
                 ImGui::InputFloat3("Light Position", reinterpret_cast<float*>(&GetLightPosition()));
                 ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&GetLightColor()));
                 ImGui::InputFloat("Light Multiplicator", &GetLightMultiplicator());
@@ -268,8 +270,9 @@ namespace viscom {
             auto namePrefix = splitFilename[1] + '_' + splitFilename.back();
             std::ofstream infoOut{ namePrefix + "_info.txt" }, screenPoints{ namePrefix + "_screen_export.txt" }, meshPoints{ namePrefix + "_mesh_export.txt" };
             std::ofstream pbrtOut{ namePrefix + ".pbrt" };
-            GetCurrentRenderer()->ExportScreenPointCloud(*deferredExportHeadlessFBO_, namePrefix, infoOut, screenPoints, meshPoints);
-            GetCurrentRenderer()->ExportPBRT(namePrefix, glm::uvec2(deferredExportHeadlessFBO_->GetWidth(), deferredExportHeadlessFBO_->GetHeight()), pbrtOut);
+            std::ofstream pbrtOut_do{ namePrefix + "_direct_only.pbrt" };
+            // GetCurrentRenderer()->ExportScreenPointCloud(*deferredExportHeadlessFBO_, namePrefix, infoOut, screenPoints, meshPoints);
+            GetCurrentRenderer()->ExportPBRT(namePrefix, glm::uvec2(deferredExportHeadlessFBO_->GetWidth(), deferredExportHeadlessFBO_->GetHeight()), pbrtOut, pbrtOut_do);
         } else {
             headlessFBO_->DrawToFBO([this]() {
                 gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -294,7 +297,7 @@ namespace viscom {
             enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
             enh::GLTexture::SaveTextureToFile(headlessFBO_->GetTextures()[0], texDesc, glm::uvec3(headlessFBO_->GetWidth(), headlessFBO_->GetHeight(), 1), out_filename);
 
-            RenderersSetMesh("", nullptr, 0.0f, 0.0f, true);
+            RenderersResetMeshes("");
             RenderersSetEnvironmentMap(nullptr);
             UnselectCurrentRenderer();
         }
@@ -336,6 +339,9 @@ namespace viscom {
             if (splitFilename[1] == "matte") lineCounter -= 20000;
             else if (splitFilename[1] == "subsurface") lineCounter -= 40000;
 
+            glm::vec3 alpha{ 1.0f }, sigmat{ 1.0f };
+            float eta = 1.0f;
+
             while (params_in.good()) {
                 std::getline(params_in, line);
                 auto splitParameters = utils::split(line, ',');
@@ -346,28 +352,16 @@ namespace viscom {
                 meshTheta = static_cast<float>(std::atof(splitParameters[4].c_str()));
                 meshPhi = static_cast<float>(std::atof(splitParameters[5].c_str()));
                 if (splitFilename[1] != "ao") {
-                    glm::vec3 alpha;
                     alpha.r = static_cast<float>(std::atof(splitParameters[6].c_str()));
                     alpha.g = static_cast<float>(std::atof(splitParameters[7].c_str()));
                     alpha.b = static_cast<float>(std::atof(splitParameters[8].c_str()));
-                    GetAlpha() = alpha;
                 }
-                else {
-                    GetAlpha() = glm::vec3(1.0f);
-                }
+
                 if (splitFilename[1] == "subsurface") {
-                    glm::vec3 sigmat;
                     sigmat.r = static_cast<float>(std::atof(splitParameters[9].c_str()));
                     sigmat.g = static_cast<float>(std::atof(splitParameters[10].c_str()));
                     sigmat.b = static_cast<float>(std::atof(splitParameters[11].c_str()));
-                    float eta;
                     eta = static_cast<float>(std::atof(splitParameters[12].c_str()));
-                    GetSigmaT() = sigmat;
-                    GetEta() = eta;
-                }
-                else {
-                    GetSigmaT() = glm::vec3(1.0f);
-                    GetEta() = 1.0f;
                 }
                 break;
             }
@@ -380,12 +374,19 @@ namespace viscom {
             auto meshFilename = inputDir_ + shapeNetCorePath + splitFilename[splitFilename.size() - 3] + "/" + splitFilename[splitFilename.size() - 2] + "/models/model_normalized.obj";
             RenderersSetEnvironmentMap(GetTextureManager().GetResource(envMapFilename));
             // SetMesh(GetMeshManager().GetResource(meshFilename, true), meshTheta, meshPhi);
-            RenderersSetMesh(splitFilename[splitFilename.size() - 3] + "-" + splitFilename[splitFilename.size() - 2], GetMeshManager().GetResource(meshFilename), meshTheta, meshPhi, true);
+
+            RenderersResetMeshes(splitFilename[splitFilename.size() - 3] + "-" + splitFilename[splitFilename.size() - 2]);
+            pcViewer::MeshContainerEntryInfo meshInfo;
+            meshInfo.mesh_ = GetMeshManager().GetResource(meshFilename);
+            meshInfo.albedo_ = alpha;
+            meshInfo.sigmat_ = sigmat;
+            meshInfo.eta_ = eta;
+            RenderersAddMesh(meshInfo, meshTheta, meshPhi, true);
             //SetMesh(GetMeshManager().GetResource("D:/Users/Sebastian Maisch/Documents/dev/deeplearning/ModelNet10/chair/train/chair_0009.off"), 0.0f, 0.0f);
 
         }
         else {
-            RenderersSetMesh("", nullptr, 0.0f, 0.0f, true);
+            RenderersResetMeshes("");
             RenderersSetEnvironmentMap(nullptr);
         }
         UpdateBaseRendererType();
@@ -408,8 +409,14 @@ namespace viscom {
             RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), glm::mat4());
         }
 
+        pcViewer::MeshContainerEntryInfo meshInfo;
+        meshInfo.mesh_ = GetMeshManager().GetResource(meshFilename);
+        meshInfo.albedo_ = glm::vec3(1.0f);
+        meshInfo.sigmat_ = glm::vec3(1.0f);
+        meshInfo.eta_ = 1.3f;
         RenderersSetEnvironmentMap(nullptr);
-        RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshFilename), 0.f, 0.f, false);
+        RenderersResetMeshes(meshPath.filename().string());
+        RenderersAddMesh(meshInfo, 0.f, 0.f, false);
         UpdateBaseRendererType();
     }
 
@@ -572,31 +579,66 @@ namespace viscom {
 
     void CoordinatorNode::LoadParamsFile(const std::string& paramsname)
     {
+        namespace fs = std::filesystem;
+        fs::path paramsPath{ paramsname };
+
         inputFileSelected_ = true;
         std::ifstream paramsIn{ paramsname };
-        std::string typeLine, meshFilename, pcFilename, sigmaTStr, etaStr, albedoStr, lightPosStr, lightColorStr, lightMulStr, resStr, viewMatrixStr, projMatrixStr, modelMatrixStr;
+        std::string typeLine, pcFilename, pcModelMatrixStr, numMeshesStr;
         std::getline(paramsIn, typeLine); //
-        std::getline(paramsIn, meshFilename); //
         std::getline(paramsIn, pcFilename); //
-
-        std::getline(paramsIn, sigmaTStr); //
-        std::getline(paramsIn, etaStr); //
-        std::getline(paramsIn, albedoStr); //
-        std::getline(paramsIn, lightPosStr); //
-        std::getline(paramsIn, lightColorStr); //
-        std::getline(paramsIn, lightMulStr); //
-        std::getline(paramsIn, resStr); //
-        std::getline(paramsIn, modelMatrixStr);
-        std::getline(paramsIn, viewMatrixStr);
-        std::getline(paramsIn, projMatrixStr);
+        std::getline(paramsIn, pcModelMatrixStr); //
+        std::getline(paramsIn, numMeshesStr);
 
         if (typeLine == "ao") SelectRenderers(pcViewer::PCType::AO);
         else if (typeLine == "matte") SelectRenderers(pcViewer::PCType::MATTE);
         else if (typeLine == "subsurface") SelectRenderers(pcViewer::PCType::SUBSURFACE);
 
-        GetSigmaT() = parseVec3(sigmaTStr);
-        GetEta() = parseFlt(etaStr);
-        GetAlpha() = parseVec3(albedoStr);
+
+        auto modelMatrixPC = parseMat4(pcModelMatrixStr);
+        auto meshPCPath = paramsPath.parent_path() / pcFilename;
+        auto pcName = fs::path(pcFilename).filename().stem().string();
+
+        if (fs::exists(meshPCPath)) {
+            RenderersLoadPointCloud(pcName, meshPCPath.string(), modelMatrixPC);
+        }
+
+        auto numMeshes = static_cast<std::size_t>(std::atoi(numMeshesStr.c_str()));
+        RenderersResetMeshes(pcName);
+        for (std::size_t i = 0; i < numMeshes; ++i) {
+            std::string meshFilename, albedoStr, sigmaTStr, etaStr, modelMatrixStr;
+            std::getline(paramsIn, meshFilename); //
+            std::getline(paramsIn, albedoStr); //
+            std::getline(paramsIn, sigmaTStr); //
+            std::getline(paramsIn, etaStr); //
+            std::getline(paramsIn, modelMatrixStr);
+
+            pcViewer::MeshContainerEntryInfo meshInfo;
+            meshInfo.albedo_ = parseVec3(albedoStr);
+            meshInfo.sigmat_ = parseVec3(sigmaTStr);
+            meshInfo.eta_ = parseFlt(etaStr);
+            auto modelMatrix = parseMat4(modelMatrixStr);
+            
+
+            auto meshPath = paramsPath.parent_path() / meshFilename;
+
+            auto meshName = meshPath.filename().stem().string();
+
+            if (fs::exists(meshPath)) {
+                meshInfo.mesh_ = GetMeshManager().GetResource(meshPath.string());
+                RenderersAddMesh(meshInfo, modelMatrix, false);
+            }
+        }
+
+        std::string lightPosStr, lightColorStr, lightMulStr, resStr, viewMatrixStr, projMatrixStr;
+        
+        std::getline(paramsIn, lightPosStr); //
+        std::getline(paramsIn, lightColorStr); //
+        std::getline(paramsIn, lightMulStr); //
+        std::getline(paramsIn, resStr); //
+        std::getline(paramsIn, viewMatrixStr);
+        std::getline(paramsIn, projMatrixStr);
+
         GetLightPosition() = parseVec3(lightPosStr);
         GetLightColor() = parseVec3(lightColorStr);
         GetLightMultiplicator() = parseFlt(lightMulStr);
@@ -607,22 +649,8 @@ namespace viscom {
 
         auto viewMatrix = parseMat4(viewMatrixStr);
         auto projMatrix = parseMat4(projMatrixStr);
-        auto modelMatrix = parseMat4(modelMatrixStr);
 
         GetCameraEnh().FixView(viewMatrix, projMatrix);
-
-        namespace fs = std::filesystem;
-        fs::path paramsPath{ paramsname };
-        auto meshPath = paramsPath.parent_path() / meshFilename;
-        auto meshPCPath = paramsPath.parent_path() / pcFilename;
-
-        if (fs::exists(meshPCPath)) {
-            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), modelMatrix);
-        }
-
-        if (fs::exists(meshPath)) {
-            RenderersSetMesh(meshPath.filename().string(), GetMeshManager().GetResource(meshPath.string()), modelMatrix, false);
-        }
 
         RenderersSetEnvironmentMap(nullptr);
         UpdateBaseRendererType();
@@ -634,6 +662,8 @@ namespace viscom {
 
         for (std::size_t i = 0; i < static_cast<std::size_t>(pcViewer::RenderType::SCREEN); ++i) {
             baseRenderType_ = static_cast<pcViewer::RenderType>(i);
+
+            if (!GetCurrentRenderer()->IsAvaialble()) continue;
 
             headlessFBO_->DrawToFBO([this]() {
                 gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f);

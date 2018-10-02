@@ -249,5 +249,5 @@ void main(void)
     }
 
     ao = vec4(aoVal, aoVal, aoVal, 1.0);
-    ao = vec4(aoVal * texture(directIlluminationTexture, texCoord).rgb, 1.0);
+    // ao = vec4(aoVal * texture(directIlluminationTexture, texCoord).rgb, 1.0);
 }

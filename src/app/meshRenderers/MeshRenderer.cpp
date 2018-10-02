@@ -68,12 +68,12 @@ namespace pcViewer {
         });
     }
 
-    void MeshRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
-    {
-        using PointCloudPoint = PointCloudPointSubsurface;
-        auto& pointCloud = GetMesh()->GetExportedPointCloud();
-
-        std::copy(pointCloud.begin(), pointCloud.end(), std::ostream_iterator<PointCloudPoint>(meshPoints, "\n"));
-    }
+    // void MeshRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    // {
+    //     using PointCloudPoint = PointCloudPointSubsurface;
+    //     auto& pointCloud = GetMesh()->GetExportedPointCloud();
+    // 
+    //     std::copy(pointCloud.begin(), pointCloud.end(), std::ostream_iterator<PointCloudPoint>(meshPoints, "\n"));
+    // }
 
 }

@@ -48,9 +48,9 @@ namespace pcViewer {
         });
     }
 
-    void PointCloudRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
-    {
-        GetPointCloud()->ExportScreenPointCloudMesh(meshPoints);
-    }
+    // void PointCloudRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    // {
+    //     GetPointCloud()->ExportScreenPointCloudMesh(meshPoints);
+    // }
 
 }

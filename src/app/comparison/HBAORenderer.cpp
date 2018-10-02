@@ -98,27 +98,28 @@ namespace pcViewer {
         // GetMesh()->DrawMeshDeferredAndExport(true);
     }
 
-    void HBAORenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
-    {
-        throw std::runtime_error("ExportScreenPointCloudMesh: Not implemented!!");
-    }
+    // void HBAORenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
+    // {
+    //     throw std::runtime_error("ExportScreenPointCloudMesh: Not implemented!!");
+    // }
 
     void HBAORenderer::RenderGUIByType()
     {
         if (ImGui::Button("Export HBAO PBRT")) {
             glm::uvec2 size{ GetApp()->GetDeferredExportFBO().GetWidth(), GetApp()->GetDeferredExportFBO().GetHeight() };
 
-            std::ofstream pbrtOut{ GetMesh()->GetMeshName() + ".pbrt" };
-            ExportPBRT(GetMesh()->GetMeshName(), size, pbrtOut);
+            auto outputName = GetMesh()->GetMeshName() + "_ao";
+            std::ofstream pbrtOut{ outputName + ".pbrt" };
+            std::ofstream pbrtOut_do{ outputName + "_direct_only.pbrt" };
+            ExportPBRT(outputName + "_pbrt", size, pbrtOut, pbrtOut_do);
 
-            GetApp()->SaveImageAllTechniques(GetMesh()->GetMeshName());
-            // TODO: export images as well... [9/29/2018 Sebastian Maisch]
+            GetApp()->SaveImageAllTechniques(outputName);
         }
     }
 
-    void HBAORenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
-    {
-        throw std::runtime_error("ExportScreenPointCloudScreen: Not implemented!!");
-    }
+    // void HBAORenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
+    // {
+    //     throw std::runtime_error("ExportScreenPointCloudScreen: Not implemented!!");
+    // }
 
 }

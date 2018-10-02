@@ -28,7 +28,7 @@ namespace pcViewer {
 
         virtual bool IsAmbientOcclustion() const { return false; }
 
-        virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const override;
+        // virtual void ExportScreenPointCloudMesh(std::ostream& meshPoints) const override;
 
     private:
         /** Holds the program for final rendering. */

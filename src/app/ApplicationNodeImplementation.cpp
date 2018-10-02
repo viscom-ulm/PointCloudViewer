@@ -272,22 +272,23 @@ namespace viscom {
         }
     }
 
-    void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, float theta, float phi, bool doRescale)
+    void ApplicationNodeImplementation::RenderersResetMeshes(const std::string& meshName)
     {
-        mesh_->SetMesh(meshName, mesh, theta, phi, doRescale);
+        mesh_->ResetContainer(meshName);
         for (const auto& renderer : *currentRenderers_) {
             if (!renderer) continue;
             renderer->SetMesh(mesh_.get());
         }
     }
 
-    void ApplicationNodeImplementation::RenderersSetMesh(const std::string& meshName, std::shared_ptr<Mesh> mesh, const glm::mat4& modelMatrix, bool doRescale)
+    void ApplicationNodeImplementation::RenderersAddMesh(const pcViewer::MeshContainerEntryInfo& meshInfo, float theta, float phi, bool doRescale)
     {
-        mesh_->SetMesh(meshName, mesh, modelMatrix, doRescale);
-        for (const auto& renderer : *currentRenderers_) {
-            if (!renderer) continue;
-            renderer->SetMesh(mesh_.get());
-        }
+        mesh_->AddMesh(meshInfo, theta, phi, doRescale);
+    }
+
+    void ApplicationNodeImplementation::RenderersAddMesh(const pcViewer::MeshContainerEntryInfo& meshInfo, const glm::mat4& modelMatrix, bool doRescale)
+    {
+        mesh_->AddMesh(meshInfo, modelMatrix, doRescale);
     }
 
     void ApplicationNodeImplementation::RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap)
