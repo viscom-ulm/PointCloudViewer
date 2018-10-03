@@ -138,6 +138,11 @@ endif()
 
 copy_core_lib_dlls(${APP_NAME})
 
+add_executable(ImageDiff image_diff_src/main.cpp)
+set_target_properties(ImageDiff PROPERTIES OUTPUT_NAME imgdiff)
+set_property(TARGET ImageDiff PROPERTY CXX_STANDARD 17)
+target_include_directories(ImageDiff PRIVATE image_diff_src extern/fwcore/extern/stb extern/fwcore/extern/glm)
+
 install(TARGETS ${APP_NAME} RUNTIME DESTINATION ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME})
 install(DIRECTORY resources/ DESTINATION ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME}/resources)
 install(FILES ${CMAKE_BINARY_DIR}/framework_install.cfg DESTINATION ${VISCOM_INSTALL_BASE_PATH}/${VISCOM_APP_NAME} RENAME framework.cfg)

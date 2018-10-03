@@ -53,7 +53,7 @@ namespace pcViewer {
 
     void BaseRenderer::ExportPBRT(const std::string& pbrtOutName, const glm::uvec2& imgSize, std::ostream& pbrt, std::ostream& pbrt_directonly)
     {
-        auto pbrtOutName_direct_only = std::filesystem::path{ pbrtOutName }.filename().string() + "_direct_only.png";
+        auto pbrtOutName_direct_only = std::filesystem::path{ pbrtOutName }.filename().string() + "_direct_only";
         // auto camPos = appNode_->GetCamera()->GetPosition();
         auto camPos = appNode_->GetCameraEnh().GetPosition();
 
@@ -124,7 +124,7 @@ namespace pcViewer {
             auto objFileName = std::filesystem::path(mesh_->GetMeshFilename(i)).filename().stem();
             auto objFilePath = std::filesystem::path(mesh_->GetMeshFilename(i)).lexically_normal().parent_path();
 
-            auto objFile = objFilePath / std::filesystem::path(objFileName.string() + "-pbrt" + objFileExt.string());
+            auto objFile = objFilePath / std::filesystem::path(objFileName.string() + objFileExt.string());
             std::stringstream model_filename;
             model_filename << std::quoted(objFile.lexically_normal().string());
 
@@ -136,20 +136,30 @@ namespace pcViewer {
         std::string line, line_do;
         while (pbrt_in.good()) {
             std::getline(pbrt_in, line);
+            line_do = line;
 
-            line_do = std::regex_replace(line, std::regex(R"(\$\{INTEGRATOR_NAME\})"), integrator_name_direct_only);
             line = std::regex_replace(line, std::regex(R"(\$\{INTEGRATOR_NAME\})"), integrator_name);
-            line_do = std::regex_replace(line, std::regex(R"(\$\{PBRT_FN\})"), pbrtOutName_direct_only);
             line = std::regex_replace(line, std::regex(R"(\$\{PBRT_FN\})"), pbrtOutName);
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{CAM_FOV\})"), cam_fov_str.str());
-            // line = std::regex_replace(line, std::regex(R"(\$\{MODEL_FN\})"), model_filename.str());
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_POS\})"), light_pos_str.str());
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_STRENGTH\})"), light_strength_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{CAM_FOV\})"), cam_fov_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_POS\})"), light_pos_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_STRENGTH\})"), light_strength_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{MODELS\})"), models_str.str());
 
-            line_do = line = std::regex_replace(line, std::regex(R"(\$\{MODELS\})"), models_str.str());
+
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{INTEGRATOR_NAME\})"), integrator_name_direct_only);
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{PBRT_FN\})"), pbrtOutName_direct_only);
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{CAM_FOV\})"), cam_fov_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{LIGHT_POS\})"), light_pos_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{LIGHT_STRENGTH\})"), light_strength_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{MODELS\})"), models_str.str());
+
+            // line = std::regex_replace(line, std::regex(R"(\$\{MODEL_FN\})"), model_filename.str());
             // line = std::regex_replace(line, std::regex(R"(\$\{MODEL_PHI\})"), model_phi_str.str());
             // line = std::regex_replace(line, std::regex(R"(\$\{MODEL_TRANSLATE\})"), model_translate_str.str());
             // line = std::regex_replace(line, std::regex(R"(\$\{MODEL_SCALE\})"), model_scale_str.str());

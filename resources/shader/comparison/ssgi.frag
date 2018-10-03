@@ -74,7 +74,7 @@ void main(void)
     // Lind = vec3(0);
     vec3 I = texture(directIlluminationTexture, texCoord).rgb;
     vec3 C = texture(materialColorTexture, texCoord).rgb;
-    vec3 L = (As * Lind) + (I * C) / PI;
+    vec3 L = (As * Lind) + 0.0001f * (I * C) / PI;
     // L = (As * Lind);
 
     ssgi = vec4(L, 1);

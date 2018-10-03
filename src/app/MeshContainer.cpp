@@ -17,6 +17,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+constexpr bool SWITCH_COORDINATE_SYSTEM = true;
+
 namespace pcViewer {
     MeshContainer::MeshContainer(ApplicationNodeImplementation * appNode) :
         appNode_{ appNode }
@@ -111,14 +113,20 @@ namespace pcViewer {
         auto lightProj = glm::perspectiveFov(2.0f * fovHalf, 1024.0f, 1024.0f, distance - radius, distance + radius);
         lightViewProj_ = lightProj * lightView;
 
+
         gl::glDisable(gl::GL_CULL_FACE);
         shadowMap_->DrawToFBO([this] {
+            glm::mat4 modelAdj{ 1.0f };
+            if constexpr (SWITCH_COORDINATE_SYSTEM) {
+                modelAdj[2][2] = -1.0f;
+            }
+
             gl::glClear(gl::GL_DEPTH_BUFFER_BIT);
             gl::glUseProgram(shadowMapProgram_->getProgramId());
             gl::glUniformMatrix4fv(shadowMapUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(lightViewProj_));
 
             for (const auto& mesh : meshEntries_) {
-                mesh.meshRenderableSM_->Draw(mesh.meshModel_);
+                mesh.meshRenderableSM_->Draw(modelAdj * mesh.meshModel_);
             }
         });
         gl::glDisable(gl::GL_POLYGON_OFFSET_FILL);
@@ -151,6 +159,11 @@ namespace pcViewer {
 
         // VP = appNode_->GetCamera()->GetViewPerspectiveMatrix();
 
+        glm::mat4 modelAdj{ 1.0f };
+        if constexpr (SWITCH_COORDINATE_SYSTEM) {
+            modelAdj[2][2] = -1.0f;
+        }
+
         gl::glDisable(gl::GL_CULL_FACE);
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
@@ -171,7 +184,7 @@ namespace pcViewer {
             gl::glUniform1f(deferredUniformLocations_[3], mesh.info_.eta_);
             gl::glUniform3fv(deferredUniformLocations_[9], 1, glm::value_ptr(mesh.info_.albedo_));
 
-            mesh.meshRenderable_->Draw(mesh.meshModel_);
+            mesh.meshRenderable_->Draw(modelAdj * mesh.meshModel_);
         }
 
         

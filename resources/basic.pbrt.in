@@ -3,7 +3,7 @@ LookAt ${CAM_POS}  # eye
        0 1 0    # up vector
 Camera "perspective" "float fov" ${CAM_FOV}
 
-Sampler "halton" "integer pixelsamples" 512
+Sampler "halton" "integer pixelsamples" 128
 Integrator ${INTEGRATOR_NAME}
 Film "image" "string filename" "${PBRT_FN}.png" "integer xresolution" [${XRES}] "integer yresolution" [${YRES}]
 
