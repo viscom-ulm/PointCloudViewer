@@ -56,15 +56,19 @@ namespace pcViewer {
         auto pbrtOutName_direct_only = std::filesystem::path{ pbrtOutName }.filename().string() + "_direct_only";
         // auto camPos = appNode_->GetCamera()->GetPosition();
         auto camPos = appNode_->GetCameraEnh().GetPosition();
+        auto viewMatrix = appNode_->GetCameraEnh().GetViewMatrix();
+        glm::vec3 camUp{ viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1] };
+        camUp = glm::normalize(camUp);
 
-        std::stringstream cam_pos_str, cam_fov_str, light_pos_str, light_strength_str, img_size_x_str, img_size_y_str;
+        std::stringstream cam_pos_str, cam_up_str, cam_fov_str, light_pos_str, light_strength_str, img_size_x_str, img_size_y_str;
         cam_pos_str << camPos.x << " " << camPos.y << " " << -camPos.z;
+        cam_up_str << camUp.x << " " << camUp.y << " " << -camUp.z;
         // model_theta_str << mesh_->GetTheta() * 180.f / glm::pi<float>();
         // model_phi_str << mesh_->GetPhi() * 180.f / glm::pi<float>();
         // model_translate_str << mesh_->GetModelMatrix()[3][0] << " " << mesh_->GetModelMatrix()[3][1] << " " << -mesh_->GetModelMatrix()[3][2];
         // model_scale_str << mesh_->GetRescale() << " " << mesh_->GetRescale() << " " << -mesh_->GetRescale();
 
-        light_pos_str << GetLightPosition().x << " " << GetLightPosition().y << " " << GetLightPosition().z;
+        light_pos_str << GetLightPosition().x << " " << GetLightPosition().y << " " << -GetLightPosition().z;
         auto lightStrength = GetLightColor() * GetLightMultiplicator();
         light_strength_str << lightStrength.x << " " << lightStrength.y << " " << lightStrength.z;
         img_size_x_str << imgSize.x;
@@ -143,6 +147,7 @@ namespace pcViewer {
             line = std::regex_replace(line, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
+            line = std::regex_replace(line, std::regex(R"(\$\{CAM_UP\})"), cam_up_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{CAM_FOV\})"), cam_fov_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_POS\})"), light_pos_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{LIGHT_STRENGTH\})"), light_strength_str.str());
@@ -154,6 +159,7 @@ namespace pcViewer {
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{CAM_UP\})"), cam_up_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{CAM_FOV\})"), cam_fov_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{LIGHT_POS\})"), light_pos_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{LIGHT_STRENGTH\})"), light_strength_str.str());

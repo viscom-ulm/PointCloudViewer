@@ -406,7 +406,7 @@ namespace viscom {
 
         auto meshPCPath = meshPath.parent_path() / (meshPath.stem().string() + "_" + typeStr + ".txt");
         if (fs::exists(meshPCPath)) {
-            RenderersLoadPointCloud(meshPath.filename().string(), meshPCPath.string(), glm::mat4());
+            RenderersLoadPointCloud(meshPath.stem().string(), meshPCPath.string(), glm::mat4());
         }
 
         pcViewer::MeshContainerEntryInfo meshInfo;
@@ -415,7 +415,7 @@ namespace viscom {
         meshInfo.sigmat_ = glm::vec3(1.0f);
         meshInfo.eta_ = 1.3f;
         RenderersSetEnvironmentMap(nullptr);
-        RenderersResetMeshes(meshPath.filename().string());
+        RenderersResetMeshes(meshPath.stem().string());
         RenderersAddMesh(meshInfo, 0.f, 0.f, false);
         UpdateBaseRendererType();
     }

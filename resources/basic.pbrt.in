@@ -1,6 +1,6 @@
 LookAt ${CAM_POS}  # eye
        0 0 0  # look at point
-       0 1 0    # up vector
+       ${CAM_UP}    # up vector
 Camera "perspective" "float fov" ${CAM_FOV}
 
 Sampler "halton" "integer pixelsamples" 128
