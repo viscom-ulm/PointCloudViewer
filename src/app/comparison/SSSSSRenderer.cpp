@@ -103,7 +103,7 @@ namespace pcViewer {
 
         // Evaluate dipole integrand $E_{\roman{d}}$ at $\depthreal$ and add to _Ed_
         float zri = l;
-        float zvi = l - 2.0f * p.zb_;
+        float zvi = l + 2.0f * p.zb_;
 
 
         float dr = std::sqrt(r * r + zri * zri), dv = std::sqrt(r * r + zvi * zvi);
@@ -115,7 +115,7 @@ namespace pcViewer {
         float divTermV = expTermV / dv;
 
         // Compute dipole fluency rate $\dipole(r)$ using Equation (15.27)
-        float Rphi = (0.5f * glm::one_over_two_pi<float>() / p.D_) * (divTermR - divTermV);
+        float Rphi = (1.0f / (4.0f * glm::pi<float>() * p.D_)) * (divTermR - divTermV);
 
         float kappa = static_cast<float>(1.0) - std::exp(-static_cast<float>(2.0) * p.sigmat_ * (dr + std::abs(zri)));
 
@@ -124,14 +124,14 @@ namespace pcViewer {
         float EDn1 = zri * (static_cast<float>(1.0) + p.sigma_tr_ * dr) * expTermR / (dr * dr * dr);
         float EDn2 = zvi * (static_cast<float>(1.0) + p.sigma_tr_ * dv) * expTermV / (dv * dv * dv);
 
-        float EDn = glm::one_over_two_pi<float>() * 0.5f * (EDn1 - EDn2);
+        float EDn = (1.0f / (4.0f * glm::pi<float>())) * (EDn1 + EDn2);
 
         // Add contribution from dipole for depth $\depthreal$ to _Ed_
         float R = Rphi * p.cPhi_ + EDn * p.cE_;
         // first rho: see PBD Eq. (5) + (6)
         // second rho: from source term
         // remainder of source term canceled out by PDF.
-        return kappa * p.rho_ * p.rho_ * R;
+        return Rphi * p.cPhi_;//  kappa * p.rho_ * p.rho_ * R;
     }
 
     float SSSSSRenderer::PBD(float r, const DiffusionParams& p) const {
@@ -155,16 +155,16 @@ namespace pcViewer {
 
         result /= static_cast<float>(BEAM_SAMPLES);
 
-        result += ComputeSingleScattering(r, p);
+        // result += ComputeSingleScattering(r, p);
 
-        return result;
+        return result / (4.0f * glm::pi<float>() * imprDiff::CalcCPhi(1.0f / eta_));
     }
 
     SSSSSRenderer::SSSSSRenderer(ApplicationNodeImplementation* appNode) :
         BaseRenderer{ PCType::SUBSURFACE, RenderType::PC_ON_MESH, "SSSSS", appNode }
     {
         s5Quad_ = std::make_unique<FullscreenQuad>("comparison/sssss.frag", GetApp());
-        s5UniformLocations_ = s5Quad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "sssIlluminationTexture", "kernelTexture", "camPos", "maxOffsetMm", "dir", "distanceToProjectionWindow" });
+        s5UniformLocations_ = s5Quad_->GetGPUProgram()->GetUniformLocations({ "positionTexture", "normalTexture", "materialColorTexture", "sssIlluminationTexture", "kernelTexture", "camPos", "maxOffsetMm", "dir", "distanceToProjectionWindow", "eta" });
 
         RecalculateKernel(true);
     }
@@ -212,6 +212,7 @@ namespace pcViewer {
         gl::glUniform1f(s5UniformLocations_[6], maxOffsetMm_);
         gl::glUniform2fv(s5UniformLocations_[7], 1, glm::value_ptr(dir));
         gl::glUniform1f(s5UniformLocations_[8], distanceToProjectionWindow);
+        gl::glUniform1f(s5UniformLocations_[9], eta_);
 
         // gl::glUniformMatrix4fv(s5UniformLocations_[6], 1, false, glm::value_ptr(GetApp()->GetCameraEnh().GetViewMatrix()));
 
@@ -248,7 +249,7 @@ namespace pcViewer {
         auto alpha = GetMesh()->GetMesh(0).info_.albedo_;
         auto sigmat = GetMesh()->GetMesh(0).info_.sigmat_;
         auto eta = GetMesh()->GetMesh(0).info_.eta_;
-        if (!force && (alpha_ == alpha && sigmat_ == sigmat_ && eta_ == eta)) return;
+        if (!force && (alpha_ == alpha && sigmat_ == sigmat && eta_ == eta)) return;
         if (sigmat.r == 0.0f || sigmat.g == 0.0f || sigmat.b == 0.0f) return;
         if (eta == 0.0f) return;
 
@@ -258,7 +259,7 @@ namespace pcViewer {
         gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_MAG_FILTER, gl::GL_LINEAR);
         gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_MIN_FILTER, gl::GL_LINEAR);
 
-        const std::size_t kernelTexSize = 127;
+        const std::size_t kernelTexSize = 31;
         const std::size_t halfKTS = (kernelTexSize + 1) / 2;
 
         std::vector<glm::vec4> kernelData;
@@ -277,7 +278,6 @@ namespace pcViewer {
 
             diffParams_[i].sigmas_ = diffParams_[i].rho_ * diffParams_[i].sigmat_;
             diffParams_[i].sigmaa_ = diffParams_[i].sigmat_ - diffParams_[i].sigmas_;
-            diffParams_[i].sigmas_ = sigmat_[i];
 
             diffParams_[i].A_ = imprDiff::CalcA(eta_);
             diffParams_[i].D_ = imprDiff::CalcD(diffParams_[i].sigmaa_, diffParams_[i].sigmas_);
@@ -303,7 +303,7 @@ namespace pcViewer {
         do {
             maxOffsetMm_ *= 1.1f;
             minProfile = PBD(maxOffsetMm_, diffParams_[comp]);
-        } while (minProfile > 0.0005f);
+        } while (minProfile > 0.005f);
 
         auto calcKernel = [this, halfKTS](float r) -> glm::vec4 {
             auto rmod = r * maxOffsetMm_ / static_cast<float>(halfKTS - 1);
@@ -314,11 +314,14 @@ namespace pcViewer {
         };
 
         kernelData.resize(kernelTexSize * kernelTexSize);
+        glm::vec4 oval;
         for (int tX = 0; tX < halfKTS; ++tX) {
             for (int tY = 0; tY < halfKTS; ++tY) {
                 glm::vec4 v = glm::vec4(0.0f);
                 if (tX > tY) v = kAt(kernelData, tY, tX);
                 else v = calcKernel(glm::length(glm::vec2(tX, tY)));
+
+                if (tX == 0 && tY == 0) oval = v;
 
                 kAt(kernelData, tX, tY) = v;
                 kAt(kernelData, tX, -tY) = v;

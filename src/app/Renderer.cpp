@@ -99,6 +99,7 @@ namespace pcViewer {
         std::string integrator_name = R"("path")";
         std::string integrator_name_direct_only = R"("path" "integer maxdepth" 1)";
         if (pcType_ == PCType::AO) integrator_name = R"("ambientocclusion")";
+        else if (pcType_ == PCType::SUBSURFACE) integrator_name = R"("path" "integer maxdepth" 1)";
 
         std::ifstream pbrt_in(Resource::FindResourceLocation("basic.pbrt.in", appNode_->GetConfig()));
 

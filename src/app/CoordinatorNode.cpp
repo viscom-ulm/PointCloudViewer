@@ -69,8 +69,8 @@ namespace viscom {
                 ImGui::InputFloat("Distance Power", &GetDistancePower(), 0.1f);
                 ImGui::InputFloat("Point Size", &GetPointSize(), 0.1f);
                 if (mesh_ && *mesh_) {
-                    ImGui::InputFloat3("Albedo", reinterpret_cast<float*>(&mesh_->GetMesh(0).info_.albedo_));
-                    ImGui::InputFloat3("SigmaT", reinterpret_cast<float*>(&mesh_->GetMesh(0).info_.sigmat_));
+                    ImGui::InputFloat3("Albedo", reinterpret_cast<float*>(&mesh_->GetMesh(0).info_.albedo_), "%.6f");
+                    ImGui::InputFloat3("SigmaT", reinterpret_cast<float*>(&mesh_->GetMesh(0).info_.sigmat_), "%.6f");
                     ImGui::InputFloat("Eta", &mesh_->GetMesh(0).info_.eta_);
                 }
                 ImGui::InputFloat3("Light Position", reinterpret_cast<float*>(&GetLightPosition()));
