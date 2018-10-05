@@ -294,7 +294,7 @@ namespace viscom {
             }
 
             auto out_filename = pointCloud.substr(0, pointCloud.size() - 3) + "png";
-            enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
+            enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGB, gl::GL_UNSIGNED_BYTE);
             enh::GLTexture::SaveTextureToFile(headlessFBO_->GetTextures()[0], texDesc, glm::uvec3(headlessFBO_->GetWidth(), headlessFBO_->GetHeight(), 1), out_filename);
 
             RenderersResetMeshes("");
@@ -652,6 +652,8 @@ namespace viscom {
 
         GetCameraEnh().FixView(viewMatrix, projMatrix);
 
+        outFolder_ = paramsPath.parent_path().string();
+
         RenderersSetEnvironmentMap(nullptr);
         UpdateBaseRendererType();
     }
@@ -659,6 +661,8 @@ namespace viscom {
     void CoordinatorNode::SaveImageAllTechniques(const std::string& name)
     {
         auto currentRenderType = baseRenderType_;
+
+        std::ofstream timings_out{ name + "_timings.txt" };
 
         for (std::size_t i = 0; i < static_cast<std::size_t>(pcViewer::RenderType::SCREEN); ++i) {
             baseRenderType_ = static_cast<pcViewer::RenderType>(i);
@@ -674,10 +678,14 @@ namespace viscom {
                 gl::glClear(gl::GL_COLOR_BUFFER_BIT | gl::GL_DEPTH_BUFFER_BIT);
             });
 
+            timings_out << GetCurrentRenderer()->GetRendererName() << ": ";
+            timings_out << CurrentRendererDoPerformanceMeasure(*headlessFBO_, *deferredHeadlessFBO_, true);
+            timings_out << std::endl;
+
             CurrentRendererDrawPointCloud(*headlessFBO_, *deferredHeadlessFBO_, true);
 
             auto out_filename = name + "_" + GetCurrentRenderer()->GetRendererName() +".png";
-            enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE);
+            enh::TextureDescriptor texDesc(4, gl::GL_RGBA8, gl::GL_RGB, gl::GL_UNSIGNED_BYTE);
             enh::GLTexture::SaveTextureToFile(headlessFBO_->GetTextures()[0], texDesc, glm::uvec3(headlessFBO_->GetWidth(), headlessFBO_->GetHeight(), 1), out_filename);
         }
 

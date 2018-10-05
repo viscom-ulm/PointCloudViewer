@@ -5,7 +5,7 @@ Camera "perspective" "float fov" ${CAM_FOV}
 
 Sampler "halton" "integer pixelsamples" 128
 Integrator ${INTEGRATOR_NAME}
-Film "image" "string filename" "${PBRT_FN}.png" "integer xresolution" [${XRES}] "integer yresolution" [${YRES}]
+Film "image" "string filename" ${PBRT_FN} "integer xresolution" [${XRES}] "integer yresolution" [${YRES}]
 
 WorldBegin
 

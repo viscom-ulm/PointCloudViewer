@@ -50,6 +50,31 @@ namespace pcViewer {
         });
     }
 
+    double PCOnMeshRenderer::DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    {
+        GetMesh()->DrawShadowMap();
+        deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
+            if (GetPointCloud() && GetPointCloud()->HasDirectLight()) GetMesh()->DrawMeshDeferred(false);
+            else GetMesh()->DrawMeshDeferred(true);
+        });
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (std::size_t i = 0; i < 100; ++i) {
+            deferredFBO.DrawToFBO(GetApp()->GetDistanceSumDrawIndices(), [this, &deferredFBO]() {
+                DrawPointCloudDistanceSumInternal(deferredFBO);
+            });
+
+            fbo.DrawToFBO([this, &deferredFBO]() {
+                DrawPointCloudOnMesh(deferredFBO);
+            });
+            gl::glFlush();
+            gl::glFinish();
+        }
+
+        auto stop = std::chrono::high_resolution_clock::now();
+        return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()) / 100.0;
+    }
+
     void PCOnMeshRenderer::DrawPointCloudDistanceSumInternal(const FrameBuffer& deferredFBO)
     {
         gl::glEnable(gl::GL_PROGRAM_POINT_SIZE);

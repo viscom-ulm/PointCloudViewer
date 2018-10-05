@@ -304,6 +304,11 @@ namespace viscom {
         (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DrawPointCloud(fbo, deferredFBO, batched);
     }
 
+    double ApplicationNodeImplementation::CurrentRendererDoPerformanceMeasure(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const
+    {
+        return (*currentRenderers_)[static_cast<std::size_t>(baseRenderType_)]->DoPerformanceMeasure(fbo, deferredFBO, batched);
+    }
+
     void ApplicationNodeImplementation::DrawLoadedScreen(const FrameBuffer& fbo) const
     {
         fbo.DrawToFBO([this] {

@@ -48,6 +48,18 @@ namespace pcViewer {
         });
     }
 
+    double PointCloudRenderer::DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (std::size_t i = 0; i < 100; ++i) {
+            DrawPointCloudInternal(fbo, deferredFBO, true);
+            gl::glFlush();
+            gl::glFinish();
+        }
+
+        auto stop = std::chrono::high_resolution_clock::now();
+        return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()) / 100.0;
+    }
     // void PointCloudRenderer::ExportScreenPointCloudMesh(std::ostream& meshPoints) const
     // {
     //     GetPointCloud()->ExportScreenPointCloudMesh(meshPoints);

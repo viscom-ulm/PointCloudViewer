@@ -131,7 +131,7 @@ namespace pcViewer {
         // first rho: see PBD Eq. (5) + (6)
         // second rho: from source term
         // remainder of source term canceled out by PDF.
-        return Rphi * p.cPhi_;//  kappa * p.rho_ * p.rho_ * R;
+        return kappa * p.rho_ * p.rho_ * R;
     }
 
     float SSSSSRenderer::PBD(float r, const DiffusionParams& p) const {
@@ -155,7 +155,7 @@ namespace pcViewer {
 
         result /= static_cast<float>(BEAM_SAMPLES);
 
-        // result += ComputeSingleScattering(r, p);
+        result += ComputeSingleScattering(r, p);
 
         return result / (4.0f * glm::pi<float>() * imprDiff::CalcCPhi(1.0f / eta_));
     }
@@ -184,6 +184,26 @@ namespace pcViewer {
         fbo.DrawToFBO([this, &deferredFBO]() {
             DrawHBAO(deferredFBO);
         });
+    }
+
+    double SSSSSRenderer::DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    {
+        GetMesh()->DrawShadowMap();
+        deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
+            GetMesh()->DrawMeshDeferred(true);
+        });
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (std::size_t i = 0; i < 100; ++i) {
+            fbo.DrawToFBO([this, &deferredFBO]() {
+                DrawHBAO(deferredFBO);
+            });
+            gl::glFlush();
+            gl::glFinish();
+        }
+
+        auto stop = std::chrono::high_resolution_clock::now();
+        return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()) / 100.0;
     }
 
     void SSSSSRenderer::DrawHBAO(const FrameBuffer& deferredFBO)
@@ -253,21 +273,6 @@ namespace pcViewer {
         if (sigmat.r == 0.0f || sigmat.g == 0.0f || sigmat.b == 0.0f) return;
         if (eta == 0.0f) return;
 
-        gl::glBindTexture(gl::GL_TEXTURE_2D, kernelTexture_);
-        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_S, gl::GL_CLAMP_TO_EDGE);
-        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_T, gl::GL_CLAMP_TO_EDGE);
-        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_MAG_FILTER, gl::GL_LINEAR);
-        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_MIN_FILTER, gl::GL_LINEAR);
-
-        const std::size_t kernelTexSize = 31;
-        const std::size_t halfKTS = (kernelTexSize + 1) / 2;
-
-        std::vector<glm::vec4> kernelData;
-        auto kAt = [kernelTexSize, halfKTS](std::vector<glm::vec4>& kernel, std::size_t x, std::size_t y) -> glm::vec4& {
-            return kernel[(halfKTS - 1) * kernelTexSize + (halfKTS - 1) + y * kernelTexSize + x];
-        };
-
-        float minProfile = 1.0f;
         sigmat_ = sigmat;
         alpha_ = alpha;
         eta_ = eta;
@@ -288,6 +293,20 @@ namespace pcViewer {
             diffParams_[i].cE_ = imprDiff::CalcCE(eta_);
         }
 
+        gl::glBindTexture(gl::GL_TEXTURE_2D, kernelTexture_);
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_S, gl::GL_CLAMP_TO_EDGE);
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_WRAP_T, gl::GL_CLAMP_TO_EDGE);
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_MAG_FILTER, gl::GL_LINEAR);
+        gl::glTexParameteri(gl::GL_TEXTURE_2D, gl::GL_TEXTURE_MIN_FILTER, gl::GL_LINEAR);
+
+        const std::size_t kernelTexSize = 32;
+        const std::size_t halfKTS = ((kernelTexSize & 1) ? (kernelTexSize + 1) : kernelTexSize) / 2;
+
+        std::vector<glm::vec4> kernelData;
+        auto kAt = [kernelTexSize, halfKTS](std::vector<glm::vec4>& kernel, std::size_t x, std::size_t y) -> glm::vec4& {
+            return kernel[(halfKTS - 1) * kernelTexSize + (halfKTS - 1) + y * kernelTexSize + x];
+        };
+
         float sigmatmax = sigmat_.z;
         std::size_t comp = 2;
         if (sigmat_.x > sigmat_.y && sigmat_.x > sigmat_.z) {
@@ -299,6 +318,7 @@ namespace pcViewer {
             comp = 1;
         }
 
+        float minProfile = 1.0f;
         maxOffsetMm_ = 1.0f / sigmatmax; // set to 1 mean free path to start with.
         do {
             maxOffsetMm_ *= 1.1f;
@@ -317,9 +337,14 @@ namespace pcViewer {
         glm::vec4 oval;
         for (int tX = 0; tX < halfKTS; ++tX) {
             for (int tY = 0; tY < halfKTS; ++tY) {
-                glm::vec4 v = glm::vec4(0.0f);
+                // calculate r when kernelTexSize is odd:
+                auto r = glm::vec2(tX, tY);
+                // else shift by 0.5
+                if (!(kernelTexSize & 1)) r += glm::vec2(0.5f);
+
+                auto v = glm::vec4(0.0f);
                 if (tX > tY) v = kAt(kernelData, tY, tX);
-                else v = calcKernel(glm::length(glm::vec2(tX, tY)));
+                else v = calcKernel(glm::length(r));
 
                 if (tX == 0 && tY == 0) oval = v;
 

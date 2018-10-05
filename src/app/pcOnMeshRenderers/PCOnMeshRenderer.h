@@ -21,6 +21,7 @@ namespace pcViewer {
 
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
+        virtual double DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
 
         void DrawPointCloudDistanceSumInternal(const FrameBuffer& deferredFBO);
         virtual void DrawPointCloudDistanceSum(const glm::mat4& VP, const glm::mat4& M, const FrameBuffer& deferredFBO) = 0;

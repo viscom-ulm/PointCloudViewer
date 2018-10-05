@@ -165,6 +165,7 @@ namespace pcViewer {
         }
 
         gl::glDisable(gl::GL_CULL_FACE);
+        // gl::glCullFace(gl::GL_CW);
         gl::glUseProgram(deferredProgram_->getProgramId());
         gl::glUniformMatrix4fv(deferredUniformLocations_[0], 1, gl::GL_FALSE, glm::value_ptr(VP));
         gl::glUniform3fv(deferredUniformLocations_[1], 1, glm::value_ptr(appNode_->GetCameraEnh().GetPosition()));

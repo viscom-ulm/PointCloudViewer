@@ -92,6 +92,26 @@ namespace pcViewer {
         }
     }
 
+    double SSGIRenderer::DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    {
+        GetMesh()->DrawShadowMap();
+        deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
+            GetMesh()->DrawMeshDeferred(true);
+        });
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (std::size_t i = 0; i < 100; ++i) {
+            fbo.DrawToFBO([this, &deferredFBO]() {
+                DrawHBAO(deferredFBO);
+            });
+            gl::glFlush();
+            gl::glFinish();
+        }
+
+        auto stop = std::chrono::high_resolution_clock::now();
+        return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()) / 100.0;
+    }
+
     // void SSGIRenderer::ExportScreenPointCloudScreen(const FrameBuffer & fbo, const std::string & namePrefix, std::ostream & screenPoints) const
     // {
     //     throw std::runtime_error("ExportScreenPointCloudScreen: Not implemented!!");

@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <memory>
+#include <chrono>
 #include "core/gfx/Texture.h"
 
 namespace viscom {
@@ -52,6 +53,7 @@ namespace pcViewer {
         void SetPointCloud(BasePointCloudContainer* pointCloud);
         void SetMesh(MeshContainer* mesh) { mesh_ = mesh; }
         void DrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched);
+        double DoPerformanceMeasure(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched);
         void ExportPBRT(const std::string& pbrtOutName, const glm::uvec2& imgSize, std::ostream& pbrt, std::ostream& pbrt_directonly);
         // void ExportScreenPointCloud(const FrameBuffer& deferredExportFBO, const std::string& namePrefix, std::ostream& info,
         //     std::ostream& screenPoints, std::ostream& meshPoints);
@@ -70,6 +72,7 @@ namespace pcViewer {
 
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) = 0;
+        virtual double DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) = 0;
 
         virtual void RenderGUIByType() = 0;
 

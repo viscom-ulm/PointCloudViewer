@@ -106,6 +106,7 @@ namespace viscom::enh {
 
     glm::mat4 ArcballCameraEnhanced::GetViewMatrix() const
     {
+        if (isFixed_) return fixedView_;
         auto userView = glm::lookAt(cameraHelper_.GetUserPosition(), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 

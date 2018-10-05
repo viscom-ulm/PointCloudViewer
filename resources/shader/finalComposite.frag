@@ -39,5 +39,15 @@ void main()
     else if (compositionType == 2 && isAmbientOcclusion == 1) L = (directIllumination * globalIllumination) * (materialColor / PI);
     // TODO: if Ambient occlusion
     // L = (directIllumination * globalIllumination) * (materialColor / PI);
+
+    if (L.x <= 0.0031308) L.x = 12.92 * L.x;
+    else L.x = 1.055 * pow(L.x, (1.0/2.4)) - 0.055;
+
+    if (L.y <= 0.0031308) L.y = 12.92 * L.y;
+    else L.y = 1.055 * pow(L.y, (1.0/2.4)) - 0.055;
+
+    if (L.z <= 0.0031308) L.z = 12.92 * L.z;
+    else L.z = 1.055 * pow(L.z, (1.0/2.4)) - 0.055;
+
     color = vec4(L, 1.0);
 }

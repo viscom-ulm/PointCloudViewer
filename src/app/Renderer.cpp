@@ -51,9 +51,22 @@ namespace pcViewer {
         DrawPointCloudInternal(fbo, deferredFBO, batched);
     }
 
+    double BaseRenderer::DoPerformanceMeasure(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    {
+        if (envMap_) {
+            fbo.DrawToFBO([this]() {
+                envMapRenderer_->Draw(*appNode_->GetCamera(), envMap_->getTextureId());
+            });
+        }
+
+        return DoPerformanceMeasureInternal(fbo, deferredFBO, batched);
+    }
+
     void BaseRenderer::ExportPBRT(const std::string& pbrtOutName, const glm::uvec2& imgSize, std::ostream& pbrt, std::ostream& pbrt_directonly)
     {
-        auto pbrtOutName_direct_only = std::filesystem::path{ pbrtOutName }.filename().string() + "_direct_only";
+        auto pbrt_out_name = appNode_->GetOutFolder() + "/" + std::filesystem::path{ pbrtOutName }.filename().string();
+        auto pbrt_out_name_direct_only = std::filesystem::path{ pbrtOutName }.filename().string() + "_direct_only";
+        
         // auto camPos = appNode_->GetCamera()->GetPosition();
         auto camPos = appNode_->GetCameraEnh().GetPosition();
         auto viewMatrix = appNode_->GetCameraEnh().GetViewMatrix();
@@ -98,8 +111,25 @@ namespace pcViewer {
 
         std::string integrator_name = R"("path")";
         std::string integrator_name_direct_only = R"("path" "integer maxdepth" 1)";
-        if (pcType_ == PCType::AO) integrator_name = R"("ambientocclusion")";
-        else if (pcType_ == PCType::SUBSURFACE) integrator_name = R"("path" "integer maxdepth" 1)";
+        if (pcType_ == PCType::AO) {
+            integrator_name = R"("ambientocclusion")";
+            pbrt_out_name = pbrt_out_name + ".png";
+            pbrt_out_name_direct_only = pbrt_out_name_direct_only + ".png";
+        }
+        else {
+            if (pcType_ == PCType::SUBSURFACE) integrator_name = R"("path" "integer maxdepth" 1)";
+
+            pbrt_out_name = pbrt_out_name + ".pfm";
+            pbrt_out_name_direct_only = pbrt_out_name_direct_only + ".pfm";
+        }
+
+        std::stringstream pbrt_out_name_str;
+        pbrt_out_name_str << std::quoted(std::filesystem::path{ pbrt_out_name }.lexically_normal().string());
+        pbrt_out_name = pbrt_out_name_str.str();
+
+        std::stringstream pbrt_out_name_direct_only_str;
+        pbrt_out_name_direct_only_str << std::quoted(std::filesystem::path{ pbrt_out_name_direct_only }.lexically_normal().string());
+        pbrt_out_name_direct_only = pbrt_out_name_direct_only_str.str();
 
         std::ifstream pbrt_in(Resource::FindResourceLocation("basic.pbrt.in", appNode_->GetConfig()));
 
@@ -144,7 +174,7 @@ namespace pcViewer {
             line_do = line;
 
             line = std::regex_replace(line, std::regex(R"(\$\{INTEGRATOR_NAME\})"), integrator_name);
-            line = std::regex_replace(line, std::regex(R"(\$\{PBRT_FN\})"), pbrtOutName);
+            line = std::regex_replace(line, std::regex(R"(\$\{PBRT_FN\})"), pbrt_out_name);
             line = std::regex_replace(line, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
             line = std::regex_replace(line, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());
@@ -156,7 +186,7 @@ namespace pcViewer {
 
 
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{INTEGRATOR_NAME\})"), integrator_name_direct_only);
-            line_do = std::regex_replace(line_do, std::regex(R"(\$\{PBRT_FN\})"), pbrtOutName_direct_only);
+            line_do = std::regex_replace(line_do, std::regex(R"(\$\{PBRT_FN\})"), pbrt_out_name_direct_only);
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{XRES\})"), img_size_x_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{YRES\})"), img_size_y_str.str());
             line_do = std::regex_replace(line_do, std::regex(R"(\$\{CAM_POS\})"), cam_pos_str.str());

@@ -21,6 +21,7 @@ namespace pcViewer {
 
     protected:
         virtual void DrawPointCloudInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
+        virtual double DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) override;
 
         void DrawHBAO(const FrameBuffer& deferredFBO);
 

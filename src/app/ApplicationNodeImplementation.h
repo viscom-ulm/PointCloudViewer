@@ -80,6 +80,7 @@ namespace viscom {
         const FWConfiguration* GetConfig() { return &ApplicationNodeBase::GetConfig(); }
 
         virtual void SaveImageAllTechniques(const std::string& name) {};
+        const std::string& GetOutFolder() const { return outFolder_; }
 
     protected:
         void InitOpenGLInternal();
@@ -109,6 +110,7 @@ namespace viscom {
 
         void RenderersSetEnvironmentMap(std::shared_ptr<Texture> envMap);
         void CurrentRendererDrawPointCloud(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const;
+        double CurrentRendererDoPerformanceMeasure(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched) const;
         void DrawLoadedScreen(const FrameBuffer& fbo) const;
         void UpdateBaseRendererType();
         void StartRenderScreen(enh::TexuturesRAII<5> textures);
@@ -126,6 +128,7 @@ namespace viscom {
         glm::uvec2 viewportSize_;
         pcViewer::RenderType baseRenderType_;
         std::unique_ptr<pcViewer::MeshContainer> mesh_;
+        std::string outFolder_ = ".";
 
     private:
         float boundingSphereRadius_ = 0.0f;

@@ -248,6 +248,9 @@ void main(void)
         // aoVal = max(1.0 - (aoVal / (numDirections)), 0.0);
     }
 
+    if (aoVal <= 0.0031308) aoVal = 12.92 * aoVal;
+    else aoVal = 1.055 * pow(aoVal, (1.0/2.4)) - 0.055;
+
     ao = vec4(aoVal, aoVal, aoVal, 1.0);
     // ao = vec4(aoVal * texture(directIlluminationTexture, texCoord).rgb, 1.0);
 }

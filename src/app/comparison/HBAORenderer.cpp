@@ -69,6 +69,26 @@ namespace pcViewer {
         });
     }
 
+    double HBAORenderer::DoPerformanceMeasureInternal(const FrameBuffer& fbo, const FrameBuffer& deferredFBO, bool batched)
+    {
+        GetMesh()->DrawShadowMap();
+        deferredFBO.DrawToFBO(GetApp()->GetDeferredDrawIndices(), [this]() {
+            GetMesh()->DrawMeshDeferred(true);
+        });
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (std::size_t i = 0; i < 100; ++i) {
+            fbo.DrawToFBO([this, &deferredFBO]() {
+                DrawHBAO(deferredFBO);
+            });
+            gl::glFlush();
+            gl::glFinish();
+        }
+
+        auto stop = std::chrono::high_resolution_clock::now();
+        return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()) / 100.0;
+    }
+
     void HBAORenderer::DrawHBAO(const FrameBuffer & deferredFBO)
     {
         gl::glUseProgram(hbaoQuad_->GetGPUProgram()->getProgramId());
@@ -108,7 +128,7 @@ namespace pcViewer {
         if (ImGui::Button("Export HBAO PBRT")) {
             glm::uvec2 size{ GetApp()->GetDeferredExportFBO().GetWidth(), GetApp()->GetDeferredExportFBO().GetHeight() };
 
-            auto outputName = GetMesh()->GetMeshName() + "_ao";
+            auto outputName = GetApp()->GetOutFolder() + "/" + GetMesh()->GetMeshName() + "_ao";
             std::ofstream pbrtOut{ outputName + ".pbrt" };
             std::ofstream pbrtOut_do{ outputName + "_direct_only.pbrt" };
             ExportPBRT(outputName + "_pbrt", size, pbrtOut, pbrtOut_do);
