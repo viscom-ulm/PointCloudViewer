@@ -61,7 +61,7 @@ void main(void)
             // float As = (radiusi * radiusi) / (kSize * kSize);
             // float A = 1.0f;
             // float Ap = IsArea.a;
-            float Ap = A / clamp(dot(n, normalize(camPos - p)), 0.2, 1.0);
+            float Ap = A / clamp(dot(n, normalize(camPos - p)), 0.1, 1.0);
             // As /= Afact;
 
             vec3 Cs = texture(materialColorTexture, texOffset).rgb;
@@ -81,7 +81,7 @@ void main(void)
     // Lind = vec3(0);
     vec3 I = texture(directIlluminationTexture, texCoord).rgb;
     vec3 C = texture(materialColorTexture, texCoord).rgb;
-    vec3 L = (As * Lind) + (I * C) / PI;
+    vec3 L = (As * Lind + I) * C;// / PI;
     L = (As * Lind) * (C / PI);
     L = (As * Lind + I) * (C / PI);
 
